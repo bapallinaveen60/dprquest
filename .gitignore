@@ -1,0 +1,17 @@
+# Dependencies
+frontend/node_modules/
+backend/venv/
+
+# Next.js build output
+frontend/.next/
+frontend/out/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Operating system files
+.DS_Store
+Thumbs.db

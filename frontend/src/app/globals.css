@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0b0f17;
+  --foreground: #f1f5f9;
+  
+  --color-space-950: #0a0d14;
+  --color-space-900: #121824;
+  --color-space-800: #1e293b;
+  --color-space-700: #334155;
+  
+  /* Refined, professional scientific color palette (non-AI/arcade style) */
+  --color-ku-band: #3b82f6;      /* Instrument Blue - Ku Band */
+  --color-ka-band: #f97316;      /* Instrument Copper/Orange - Ka Band */
+  --color-dfr: #8b5cf6;          /* Muted Slate Purple - DFR */
+  --color-bright-band: #d97706;   /* Amber/Gold - Melting Layer */
+  --color-rain: #2563eb;         /* Sky Blue - Rain */
+  --color-snow: #94a3b8;         /* Steel Gray - Snow */
+}
+
+@theme {
+  --color-space-950: var(--color-space-950);
+  --color-space-900: var(--color-space-900);
+  --color-space-800: var(--color-space-800);
+  --color-space-700: var(--color-space-700);
+  
+  --color-ku: var(--color-ku-band);
+  --color-ka: var(--color-ka-band);
+  --color-dfr-color: var(--color-dfr);
+  --color-bb-color: var(--color-bright-band);
+  --color-rain-color: var(--color-rain);
+  --color-snow-color: var(--color-snow);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Professional flat scientific panels (no heavy neon blurs) */
+.glass-panel {
+  background: #111827;
+  border: 1px solid #1f2937;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+
+.glass-panel-hover {
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-panel-hover:hover {
+  background: #161f30;
+  border-color: #374151;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15);
+}
+
+.glass-card-ku {
+  background: rgba(59, 130, 246, 0.04);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.glass-card-ka {
+  background: rgba(249, 115, 22, 0.04);
+  border: 1px solid rgba(249, 115, 22, 0.15);
+}
+
+/* Custom Scrollbar for scientific workstation style */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0d14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Clean mathematical display */
+.math-expression {
+  font-family: "Georgia", "Times New Roman", serif;
+  font-style: italic;
+}
