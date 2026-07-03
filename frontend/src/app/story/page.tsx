@@ -615,30 +615,135 @@ export default function StoryPage() {
             </div>
           </div>
 
-          {/* Droplet rendering visualizer */}
-          <div className="h-80 border border-gray-800 bg-slate-950 rounded-xl relative overflow-hidden p-6 flex flex-col justify-between">
-            <span className="text-[9px] text-gray-500 font-mono">RAIN DROP SIZE SCATTERING</span>
-            <div className="flex-1 flex items-center justify-center gap-10">
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-[10px] text-gray-500">1.0 mm drops</span>
-                <div className="flex flex-wrap gap-1.5 w-24 justify-center">
-                  {Array.from({ length: 15 }).map((_, i) => (
-                    <div key={i} className="w-1.5 h-1.5 bg-blue-500/60 rounded-full border border-blue-400/50" />
-                  ))}
-                </div>
+          {/* Interactive DFR Curve Visualizer */}
+          <div className="glass-panel p-6 rounded-xl border border-gray-800 bg-slate-950/40 flex flex-col justify-between gap-4">
+            <div className="flex flex-col gap-1 border-b border-gray-850 pb-2">
+              <span className="text-[9px] text-gray-500 font-mono uppercase tracking-wider">INTUITIVE PHYSICS SANDBOX</span>
+              <h3 className="text-xs font-bold text-white uppercase">Rayleigh vs. Mie Scattering (DFR)</h3>
+            </div>
+
+            {/* SVG Plot */}
+            <div className="h-44 border-l border-b border-gray-850 relative mt-4 flex items-end pl-8 pb-4 pr-2">
+              {/* Y Axis Labels */}
+              <div className="absolute left-1 top-0 bottom-4 text-[8px] text-gray-500 font-mono flex flex-col justify-between pointer-events-none select-none">
+                <span>40 dBZ</span>
+                <span>20 dBZ</span>
+                <span>0 dBZ</span>
               </div>
 
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-[10px] text-gray-500">Retrieved {dropSize.toFixed(1)} mm drop</span>
-                <div 
-                  className="bg-blue-500/70 rounded-full border border-blue-400 shadow-glow"
-                  style={{ 
-                    width: `${dropSize * 15}px`,
-                    height: `${dropSize * 15}px`
-                  }}
+              {/* Curves SVG */}
+              <svg className="w-full h-full absolute inset-y-0 right-2 left-8 h-[calc(100%-16px)] w-[calc(100%-40px)] overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+                {/* Vertical grid lines */}
+                <line x1="16.6" y1="0" x2="16.6" y2="100" stroke="#1f2937" strokeWidth="0.5" strokeDasharray="2" />
+                <line x1="50" y1="0" x2="50" y2="100" stroke="#1f2937" strokeWidth="0.5" strokeDasharray="2" />
+                <line x1="83.3" y1="0" x2="83.3" y2="100" stroke="#1f2937" strokeWidth="0.5" strokeDasharray="2" />
+
+                {/* Plot Shaded DFR area */}
+                <polygon 
+                  points={(() => {
+                    const kuPts: string[] = [];
+                    const kaPts: string[] = [];
+                    for (let d = 0.5; d <= 3.5; d += 0.1) {
+                      const x = ((d - 0.5) / 3.0) * 100;
+                      const valKu = 10 + 25 * Math.log10(d / 0.5);
+                      const yKu = 100 - (valKu / 40) * 100;
+                      kuPts.push(`${x},${yKu}`);
+
+                      const valKa = valKu - (d > 0.5 ? 2.5 * Math.pow(d - 0.5, 1.8) : 0);
+                      const yKa = 100 - (Math.max(valKa, 0) / 40) * 100;
+                      kaPts.unshift(`${x},${yKa}`); // reverse order for polygon
+                    }
+                    return [...kuPts, ...kaPts].join(" ");
+                  })()}
+                  fill="rgba(139, 92, 246, 0.08)"
                 />
+
+                {/* Ku Rayleigh Curve (Blue) */}
+                <path 
+                  d={(() => {
+                    const pts: string[] = [];
+                    let i = 0;
+                    for (let d = 0.5; d <= 3.5; d += 0.1) {
+                      const x = ((d - 0.5) / 3.0) * 100;
+                      const valKu = 10 + 25 * Math.log10(d / 0.5);
+                      const yKu = 100 - (valKu / 40) * 100;
+                      pts.push(`${i === 0 ? "M" : "L"} ${x} ${yKu}`);
+                      i++;
+                    }
+                    return pts.join(" ");
+                  })()}
+                  fill="none" stroke="#3b82f6" strokeWidth="2.5"
+                />
+
+                {/* Ka Mie Curve (Orange) */}
+                <path 
+                  d={(() => {
+                    const pts: string[] = [];
+                    let i = 0;
+                    for (let d = 0.5; d <= 3.5; d += 0.1) {
+                      const x = ((d - 0.5) / 3.0) * 100;
+                      const valKu = 10 + 25 * Math.log10(d / 0.5);
+                      const valKa = valKu - (d > 0.5 ? 2.5 * Math.pow(d - 0.5, 1.8) : 0);
+                      const yKa = 100 - (Math.max(valKa, 0) / 40) * 100;
+                      pts.push(`${i === 0 ? "M" : "L"} ${x} ${yKa}`);
+                      i++;
+                    }
+                    return pts.join(" ");
+                  })()}
+                  fill="none" stroke="#f97316" strokeWidth="2.5"
+                />
+
+                {/* Vertical slider tracker line */}
+                {(() => {
+                  const x = ((dropSize - 0.5) / 3.0) * 100;
+                  const currentKu = 10 + 25 * Math.log10(dropSize / 0.5);
+                  const currentKa = currentKu - (dropSize > 0.5 ? 2.5 * Math.pow(dropSize - 0.5, 1.8) : 0);
+                  const yKu = 100 - (currentKu / 40) * 100;
+                  const yKa = 100 - (Math.max(currentKa, 0) / 40) * 100;
+                  
+                  return (
+                    <g>
+                      <line x1={x} y1="0" x2={x} y2="100" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="3" />
+                      <circle cx={x} cy={yKu} r="3.5" fill="#3b82f6" stroke="#ffffff" strokeWidth="1" />
+                      <circle cx={x} cy={yKa} r="3.5" fill="#f97316" stroke="#ffffff" strokeWidth="1" />
+                    </g>
+                  );
+                })()}
+              </svg>
+
+              {/* X Axis Labels */}
+              <div className="absolute bottom-1 left-8 right-2 text-[8px] text-gray-500 font-mono flex justify-between pointer-events-none select-none">
+                <span>0.5 mm</span>
+                <span>1.5 mm</span>
+                <span>2.5 mm</span>
+                <span>3.5 mm</span>
               </div>
             </div>
+
+            {/* DFR explanation text */}
+            {(() => {
+              const currentKu = 10 + 25 * Math.log10(dropSize / 0.5);
+              const currentKa = currentKu - (dropSize > 0.5 ? 2.5 * Math.pow(dropSize - 0.5, 1.8) : 0);
+              const currentDfr = currentKu - currentKa;
+              
+              return (
+                <div className="p-3.5 rounded bg-slate-900 border border-gray-850 text-[10px] font-mono text-gray-300 leading-normal flex flex-col gap-1 mt-2">
+                  <div className="flex justify-between font-bold text-white border-b border-gray-800 pb-1 mb-1">
+                    <span>At Dm = {dropSize.toFixed(2)} mm</span>
+                    <span className="text-purple-400">DFR = {currentDfr.toFixed(2)} dB</span>
+                  </div>
+                  {dropSize <= 1.2 ? (
+                    <p>
+                      <span className="text-blue-400 font-bold">Rayleigh scattering:</span> Raindrops are small relative to both wavelengths. Reflectivity values are identical. DFR is zero, making single-frequency radar retrieval highly ambiguous.
+                    </p>
+                  ) : (
+                    <p>
+                      <span className="text-orange-400 font-bold">Mie scattering:</span> Raindrops are close to Ka-band wavelength (8.4mm), causing its signal to roll off. The diverging gap (DFR) uniquely resolves the mean drop size without guessing.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

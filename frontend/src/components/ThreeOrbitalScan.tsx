@@ -216,17 +216,19 @@ function OrbitScanSystem() {
         );
       })}
 
-      {/* Thin Scanning pencil beam (a narrow cylinder) */}
-      <mesh ref={beamRef}>
-        <cylinderGeometry args={[0.015, 0.04, 1.0, 8, 1, true]} />
-        <meshBasicMaterial 
-          color="#3b82f6" 
-          transparent 
-          opacity={0.25} 
-          side={THREE.DoubleSide} 
-          wireframe
-        />
-      </mesh>
+      {/* Thin Scanning pencil beam (a narrow cylinder rotated along Z) */}
+      <group ref={beamRef}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.015, 0.04, 1.0, 8, 1, true]} />
+          <meshBasicMaterial 
+            color="#3b82f6" 
+            transparent 
+            opacity={0.35} 
+            side={THREE.DoubleSide} 
+            wireframe
+          />
+        </mesh>
+      </group>
 
       {/* Satellite craft */}
       <group ref={satelliteRef}>
