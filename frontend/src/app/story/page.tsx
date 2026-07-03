@@ -5,20 +5,16 @@ import dynamic from "next/dynamic";
 import { 
   ArrowRight, 
   ArrowLeft, 
-  RefreshCw, 
-  Radio, 
-  Info,
-  Droplet,
-  CloudSnow,
-  CloudRain,
-  Flame,
-  HelpCircle,
-  CheckCircle,
+  CheckCircle, 
   XCircle,
-  HelpCircle as QuestionIcon
+  HelpCircle as QuestionIcon,
+  Play,
+  RotateCcw,
+  Compass,
+  GraduationCap
 } from "lucide-react";
 
-// Dynamically import the 3D globe visualization to avoid SSR window errors
+// Dynamically import ThreeOrbitalScan to avoid SSR window errors
 const ThreeOrbitalScan = dynamic(() => import("@/components/ThreeOrbitalScan"), {
   ssr: false,
   loading: () => (
@@ -30,35 +26,50 @@ const ThreeOrbitalScan = dynamic(() => import("@/components/ThreeOrbitalScan"), 
 
 export default function StoryPage() {
   const [chapter, setChapter] = useState(1);
-  
-  // --- CHAPTER 1 PUZZLE ---
-  const [c1Answer, setC1Answer] = useState<number | null>(null);
+  const [level, setLevel] = useState<"beginner" | "intermediate" | "advanced">("beginner");
+
+  // Sync Learning Level from local storage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem("gpm_learning_level") || "beginner";
+      setLevel(saved as any);
+    };
+    handleStorageChange();
+    window.addEventListener("storage_learning_level", handleStorageChange);
+    return () => window.removeEventListener("storage_learning_level", handleStorageChange);
+  }, []);
+
+  // --- CHAPTER 1 STATE (Orbits) ---
+  const [c1Prediction, setC1Prediction] = useState<number | null>(null);
   const [c1Checked, setC1Checked] = useState(false);
   const [c1Correct, setC1Correct] = useState(false);
 
-  // --- CHAPTER 2 PUZZLE ---
+  // --- CHAPTER 2 STATE (Timing Delay) ---
   const [timeDelay, setTimeDelay] = useState(50); // microseconds
+  const [c2Prediction, setC2Prediction] = useState<number | null>(null);
   const [c2Input, setC2Input] = useState("");
   const [c2Checked, setC2Checked] = useState(false);
   const [c2Correct, setC2Correct] = useState(false);
+  
+  // Animation states for radar pulse
   const [pulseActive, setPulseActive] = useState(false);
   const [pulsePosition, setPulsePosition] = useState(0);
   const [reflectivityProfile, setReflectivityProfile] = useState<number[]>([]);
   const animationRef = useRef<number | null>(null);
 
-  // --- CHAPTER 3 PUZZLE ---
-  const [c3Answer, setC3Answer] = useState<number | null>(null);
+  // --- CHAPTER 3 STATE (Rayleigh vs Mie) ---
+  const [dropSize, setDropSize] = useState(2.0); // mm
+  const [c3Prediction, setC3Prediction] = useState<number | null>(null);
   const [c3Checked, setC3Checked] = useState(false);
   const [c3Correct, setC3Correct] = useState(false);
-  const [dropSize, setDropSize] = useState(2.0); // mm
 
-  // --- CHAPTER 4 PUZZLE ---
+  // --- CHAPTER 4 STATE (Pulse Journey stepper) ---
   const [journeyStep, setJourneyStep] = useState(0);
-  const [c4Answer, setC4Answer] = useState<number | null>(null);
+  const [c4Prediction, setC4Prediction] = useState<number | null>(null);
   const [c4Checked, setC4Checked] = useState(false);
   const [c4Correct, setC4Correct] = useState(false);
 
-  // Chapter 2: Animation Effect
+  // Chapter 2: Animation loop
   useEffect(() => {
     if (pulseActive) {
       const step = () => {
@@ -75,15 +86,10 @@ export default function StoryPage() {
           if (currentHeight <= 0 || currentHeight >= 100) return prev;
           
           let ref = 0;
-          if (currentHeight >= 35 && currentHeight < 65) {
-            ref = 18; // dry snow
-          } else if (currentHeight >= 65 && currentHeight < 72) {
-            ref = 35; // bright band melting layer
-          } else if (currentHeight >= 72 && currentHeight < 96) {
-            ref = 26; // rain
-          } else if (currentHeight >= 96) {
-            ref = 55; // ground
-          }
+          if (currentHeight >= 35 && currentHeight < 65) ref = 15; // snow
+          else if (currentHeight >= 65 && currentHeight < 72) ref = 35; // bright band melting layer
+          else if (currentHeight >= 72 && currentHeight < 96) ref = 25; // rain
+          else if (currentHeight >= 96) ref = 50; // surface
 
           const newProfile = [...prev];
           newProfile[currentHeight] = ref;
@@ -94,9 +100,7 @@ export default function StoryPage() {
       };
       animationRef.current = requestAnimationFrame(step);
     } else {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
     }
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
@@ -109,10 +113,8 @@ export default function StoryPage() {
     setPulseActive(true);
   };
 
-  // Chapter 2: Check Answer
   const checkC2Answer = () => {
     setC2Checked(true);
-    // Distance = (0.3 * timeDelay) / 2
     const targetDistance = (0.3 * timeDelay) / 2;
     const userVal = parseFloat(c2Input);
     if (Math.abs(userVal - targetDistance) < 0.15) {
@@ -122,97 +124,103 @@ export default function StoryPage() {
     }
   };
 
-  // Chapter 4: Stepper questions
   const journeyStages = [
     {
       title: "Pulse Transmission",
-      desc: "The satellite's antenna fires microwave pulses traveling downwards at the speed of light (300,000 km/s).",
-      question: "How long does it take for a radar pulse to travel from the GPM satellite orbit (435 km height) down to the Earth's surface?",
+      question: "If GPM flies at 435 km, how long does the pulse take to reach the ocean?",
       options: [
-        "Approximately 1.45 milliseconds",
-        "Approximately 1.45 seconds",
-        "Exactly 5 seconds"
+        "1.45 milliseconds",
+        "1.45 seconds",
+        "5 seconds"
       ],
       correct: 0,
-      explanation: "Time = Distance / speed. For 435 km at 300,000 km/s, it is 435 / 300,000 = 0.00145 seconds, which is 1.45 milliseconds."
+      explain: {
+        beginner: "Microwaves travel at the speed of light, crossing the 435 km distance in a blink of an eye—just 1.45 thousandths of a second.",
+        intermediate: "Speed of light is 300,000 km/s. Time = Distance / speed = 435 / 300,000 = 1.45 milliseconds.",
+        advanced: "The round-trip delay is tracked from transmission gate ($r=0$) using a Master Clock (5.76 MHz frequency) resolving range gates to 125m resolution."
+      }
     },
     {
-      title: "Snow & Ice Boundaries",
-      desc: "The pulse enters the high altitude cloud. Dry snow crystals reflect some power, but absorb almost nothing.",
-      question: "Why is specific attenuation (signal energy loss) minimal in the upper snow layer?",
+      title: "Dry Snow Layer",
+      question: "Why does dry snow cause very little signal loss (attenuation)?",
       options: [
-        "Ice crystals are larger than raindrops.",
-        "Dry ice has a very low dielectric factor and does not absorb microwave energy.",
-        "Snow crystals reflect 100% of the beam back."
+        "Snow is cold and freezes the beam.",
+        "Dry ice crystals do not absorb microwave energy because liquid water is absent.",
+        "Snow acts like a mirror."
       ],
       correct: 1,
-      explanation: "Because ice has no liquid water coating, its imaginary refractive index (dielectric factor) is extremely low, causing near-zero signal absorption."
+      explain: {
+        beginner: "Dry ice crystals behave almost like clean air—they bounce a small amount of signal back but do not soak up the beam's energy.",
+        intermediate: "Dry ice has a low dielectric index ($|K|^2 \\approx 0.176$), causing near-zero absorption (specific attenuation $k \\approx 0$).",
+        advanced: "Because the imaginary part of the complex refractive index of ice is tiny, the specific attenuation coefficient ($k$) in the dry snow region is negligible ($k < 0.02$ dB/km at both Ku and Ka bands)."
+      }
     },
     {
-      title: "The Melting Layer (Bright Band)",
-      desc: "Snowflakes melt, getting coated in a liquid water film. They appear as massive water drops, producing a reflectivity spike.",
-      question: "What physical change causes the reflectivity spike in the melting layer?",
+      title: "The Melting Layer",
+      question: "What makes the melting layer look like an intense storm peak (Bright Band)?",
       options: [
-        "Particles become colder.",
-        "Particles accelerate to rain speed.",
-        "Dry snowflakes get coated in water, combining large snowflake size with water's high reflectivity factor."
+        "Falling snowflakes accelerate.",
+        "Dry snow crystals melt, getting coated in a film of water that acts like a massive raindrop.",
+        "Ice crystals merge."
       ],
-      correct: 2,
-      explanation: "Melting snowflakes look like giant water droplets to the radar. Since reflectivity scales as D^6, this creates a temporary spike (bright band) before the snowflakes collapse into raindrops."
+      correct: 1,
+      explain: {
+        beginner: "As dry snow starts to melt, the snowflake gets wrapped in a sticky water layer. This film acts like a giant water mirror, reflecting massive energy back to the radar.",
+        intermediate: "The dielectric factor of melting snow rises to match liquid water ($|K|^2 \\approx 0.93$), causing a surge in reflectivity (Ze) due to size and coating.",
+        advanced: "This is the Bright Band. The mixture of ice cores covered in water maximizes the dielectric constant ($|K|^2$) while preserving the large physical diameter of the snowflake, causing a localized peak in the backscattering cross-section (GPM variable `zFactorMeasured`)."
+      }
     },
     {
-      title: "Rain Column Attenuation",
-      desc: "The pulse propagates through liquid raindrops. Water absorbs and scatters microwave energy, weakening the pulse.",
-      question: "Which frequency band suffers worse attenuation as it travels down through heavy rain?",
+      title: "Rain Attenuation",
+      question: "Which band suffers worse attenuation as it travels down through liquid rain?",
       options: [
         "Ku-band (13.6 GHz)",
         "Ka-band (35.5 GHz)",
-        "Both suffer identical attenuation"
+        "Both suffer identical loss"
       ],
       correct: 1,
-      explanation: "Ka-band has a shorter wavelength (8.4mm) which is closer to the size of raindrops, triggering Mie scattering and heavy attenuation."
+      explain: {
+        beginner: "The Ka-band has a shorter wavelength and gets blocked/absorbed easily by water droplets. It loses energy rapidly as it descends.",
+        intermediate: "Ka-band (8.4mm wavelength) is closer in size to raindrops, transitioning from Rayleigh to Mie scattering. Attenuation coefficient $k$ is much higher than Ku-band.",
+        advanced: "At Ka-band (35.5 GHz), Mie scattering rolloff and specific attenuation ($k$) are significant. Ka-band signal experiences up to 4 times more attenuation per km than Ku-band, leading to a large DFR (`zFactorMeasured[Ku] - zFactorMeasured[Ka]`) near the surface."
+      }
     },
     {
-      title: "Surface Echo Spike",
-      desc: "The remaining beam strikes the dense land/ocean boundary, reflecting a massive, easily identifiable echo.",
-      question: "Why is the surface echo useful for atmospheric rain retrieval?",
+      title: "Surface Echo",
+      question: "What can the reduction in the ocean reflection echo tell us?",
       options: [
-        "It tells us the temperature of the ocean.",
-        "By comparing the attenuated surface return to a clear-sky reference, we compute the total Path Integrated Attenuation (PIA).",
-        "It creates a cloud filter mask."
+        "The ocean depth.",
+        "The total amount of signal lost through the entire storm column (Path Integrated Attenuation).",
+        "Wind speed."
       ],
       correct: 1,
-      explanation: "The reduction in the surface echo (measured vs. clean-air reference) gives the total Path Integrated Attenuation (PIA), which anchors the profile solver."
-    },
-    {
-      title: "Solver & Retrieval",
-      desc: "Echo returns are processed by the Level-2 ground software (PRE, VER, CSF, DSD, SRT, SLV) to output precipitation profiles.",
-      question: "What is the final step of the Level-2 solver pipeline?",
-      options: [
-        "Noise floor thresholding",
-        "Correcting reflectivity profiles and converting them to rain rates (mm/h) using DSD models",
-        "Orbit trajectory calculation"
-      ],
-      correct: 1,
-      explanation: "The final solver (SLV) applies attenuation correction to rebuild Ze, then uses the retrieved DSD to calculate rain rate profiles."
+      explain: {
+        beginner: "Since we know how strong the ocean mirror usually is under clear skies, the decrease in the ocean echo tells us exactly how much the rain column blocked our beam.",
+        intermediate: "Comparing the measured sea backscatter to clear air gives the total column Path Integrated Attenuation: $PIA = \\sigma_{0,\\text{ref}} - \\sigma_{0,\\text{meas}}$.",
+        advanced: "This is the Surface Reference Technique (SRT). It outputs the total path integrated attenuation ($PIA_{\\text{SRT}}$), which provides a crucial boundary constraint to scale the Hitschfeld-Bordan profile solver."
+      }
     }
   ];
 
   return (
     <div className="flex flex-col gap-6 max-w-6xl mx-auto pb-12">
-      {/* Chapter Stepper Header */}
+      {/* Chapter Stepper */}
       <div className="flex items-center justify-between border-b border-gray-800 pb-4">
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-orange-400 font-semibold tracking-widest uppercase font-mono">Story Mode (Interactive Puzzles)</span>
-          <h1 className="text-xl font-bold text-white">Chapter {chapter}: {
-            chapter === 1 ? "Meet GPM Satellite" :
-            chapter === 2 ? "How Radar Sees Rain" :
-            chapter === 3 ? "Meet Ku and Ka Bands" :
-            "The Journey of a Radar Pulse"
-          }</h1>
+          <span className="text-xs text-orange-400 font-semibold tracking-widest uppercase font-mono flex items-center gap-1.5">
+            <GraduationCap className="w-4 h-4" />
+            <span>Rediscovery Mode ({level} depth)</span>
+          </span>
+          <h1 className="text-xl font-bold text-white">
+            Chapter {chapter}: {
+              chapter === 1 ? "Meet the GPM satellite" :
+              chapter === 2 ? "Timing Echoes" :
+              chapter === 3 ? "Wave Scattering Physics" :
+              "The Journey of a Radar Pulse"
+            }
+          </h1>
         </div>
         
-        {/* Navigation */}
         <div className="flex gap-2">
           <button 
             onClick={() => {
@@ -224,7 +232,6 @@ export default function StoryPage() {
             }}
             disabled={chapter === 1}
             className="p-2 rounded-lg bg-slate-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
-            aria-label="Previous Chapter"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -248,55 +255,54 @@ export default function StoryPage() {
               chapter === 4
             }
             className="p-2 rounded-lg bg-slate-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
-            aria-label="Next Chapter"
           >
             <ArrowRight className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* --- CHAPTER 1: MEET THE GPM SATELLITE --- */}
+      {/* --- CHAPTER 1: ORBITS --- */}
       {chapter === 1 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-3">
-              <h2 className="text-lg font-bold text-white">Why inclined orbit?</h2>
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] text-gray-500 font-mono font-bold uppercase tracking-widest">Step 1: Observe & Experiment</span>
               <p className="text-gray-300 text-xs leading-relaxed font-light">
-                Ground radars cannot scan oceans, deserts, or mountain ranges. To study global weather, GPM Core Observatory flies in an inclined orbit tilt ($65^\circ$), allowing it to cross over locations at different hours of the day.
+                Look at the 3D GPM orbital model on the right. GPM does not cross the poles. Instead, it orbits tilted at a 65-degree angle, sweeping a cross-track swath pattern on the Earth's surface.
               </p>
             </div>
 
-            {/* Active Challenge Puzzle Card */}
+            {/* Prediction Challenge */}
             <div className="glass-panel p-5 rounded-xl border border-gray-850 bg-slate-950/40 flex flex-col gap-4">
               <div className="flex items-center gap-2 border-b border-gray-850 pb-2">
                 <QuestionIcon className="w-4.5 h-4.5 text-orange-400 animate-pulse" />
-                <span className="text-xs font-bold text-white">Brilliant Challenge: Orbit Mechanics</span>
+                <span className="text-xs font-bold text-white">Predict & Discover Patterns</span>
               </div>
               
               <p className="text-xs text-gray-300 font-light leading-relaxed">
-                Most weather imaging satellites use a **Sun-Synchronous Polar Orbit** (crossing the equator at exactly 1:30 PM local time daily). Why did scientists choose an **Inclined Orbit** for the GPM precipitation radar?
+                If the satellite orbits tilted at 65 degrees instead of a standard sun-synchronous polar orbit (which crosses the poles at the exact same local time daily), what will be the consequence for mapping rain?
               </p>
 
               <div className="flex flex-col gap-2.5">
                 {[
-                  "Sun-synchronous orbits require less thruster fuel.",
-                  "Rainfall varies hourly (diurnal cycle). An inclined orbit allows GPM to sample the same coordinates at different times of the day to map this cycle.",
-                  "Polar regions block active radar pulses."
+                  "It will take more rocket fuel to stay in space.",
+                  "It allows GPM to scan the same geographic coordinates at different times of day, mapping the hourly precipitation cycle.",
+                  "It prevents the radar sensors from overheating."
                 ].map((opt, idx) => (
                   <button
                     key={idx}
                     onClick={() => {
-                      if (!c1Checked) setC1Answer(idx);
+                      if (!c1Checked) setC1Prediction(idx);
                     }}
                     disabled={c1Checked}
                     className={`p-3 text-left rounded-lg border text-xs transition-all ${
                       c1Checked 
                         ? idx === 1 
                           ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400 font-semibold"
-                          : c1Answer === idx 
+                          : c1Prediction === idx 
                             ? "bg-red-950/25 border-red-500/30 text-red-400"
                             : "bg-slate-950 border-gray-900 text-gray-600 opacity-60"
-                        : c1Answer === idx 
+                        : c1Prediction === idx 
                           ? "bg-blue-900/10 border-blue-500/40 text-blue-400 font-semibold"
                           : "bg-slate-900/40 border-gray-800 text-gray-400 hover:text-white"
                     }`}
@@ -310,29 +316,43 @@ export default function StoryPage() {
                 <button
                   onClick={() => {
                     setC1Checked(true);
-                    if (c1Answer === 1) setC1Correct(true);
+                    if (c1Prediction === 1) setC1Correct(true);
                   }}
-                  disabled={c1Answer === null}
+                  disabled={c1Prediction === null}
                   className="py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-xs font-bold text-white disabled:opacity-40"
                 >
-                  Submit Answer
+                  Submit Prediction
                 </button>
               ) : (
                 <div className="flex flex-col gap-3 p-3 rounded bg-slate-900 border border-gray-850 text-xs animate-fadeIn text-gray-400">
-                  {c1Correct ? (
-                    <div className="flex items-center gap-1.5 text-emerald-400 font-bold mb-1">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Correct!</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-red-400 font-bold mb-1">
-                      <XCircle className="w-4 h-4" />
-                      <span>Incorrect</span>
+                  <div className="flex items-center gap-1.5 font-bold mb-1">
+                    {c1Correct ? (
+                      <span className="text-emerald-400 flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Correct Prediction!</span>
+                    ) : (
+                      <span className="text-red-400 flex items-center gap-1.5"><XCircle className="w-4 h-4" /> Prediction Incorrect</span>
+                    )}
+                  </div>
+
+                  {/* Level-adjusted Explanation */}
+                  {level === "beginner" && (
+                    <p className="leading-relaxed font-light">
+                      <strong>The Principle:</strong> Rain does not fall on a fixed clock. By tilting the orbit, GPM crosses locations at 8:00 AM today, 10:00 AM tomorrow, and 2:00 PM the next day, letting us map early morning storms vs afternoon showers.
+                    </p>
+                  )}
+                  {level === "intermediate" && (
+                    <p className="leading-relaxed font-light">
+                      <strong>Explanation:</strong> A tilted orbit precesses relative to the sun. This means GPM samples the diurnal (hourly) precipitation cycles over weeks, which is impossible with fixed sun-synchronous orbits.
+                    </p>
+                  )}
+                  {level === "advanced" && (
+                    <div className="flex flex-col gap-2 font-light">
+                      <p>
+                        <strong>Formalization:</strong> The orbit inclination is $65^\circ$ with a nodal precession period of 53 days. This precessing orbit samples the complete diurnal cycle of tropical and sub-tropical precipitation.
+                      </p>
+                      <span className="text-[9px] font-mono text-gray-500">Related variables: `orbitState`, `scanStatus`.</span>
                     </div>
                   )}
-                  <p className="leading-relaxed font-light">
-                    If GPM always crossed at 1:30 PM, it would completely miss early morning convective cells or nighttime convective lines. Tilted orbit shifts GPM scanning times daily, capturing the complete diurnal rain cycle.
-                  </p>
+
                   {c1Correct && (
                     <button 
                       onClick={() => setChapter(2)}
@@ -352,28 +372,28 @@ export default function StoryPage() {
         </div>
       )}
 
-      {/* --- CHAPTER 2: HOW RADAR SEES RAIN --- */}
+      {/* --- CHAPTER 2: TIMING ECHOES --- */}
       {chapter === 2 && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-5 flex flex-col gap-6">
-            <div className="flex flex-col gap-3">
-              <h2 className="text-lg font-bold text-white">Range Gate Delay calculation</h2>
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] text-gray-500 font-mono font-bold uppercase tracking-widest">Step 1: Observe & Experiment</span>
               <p className="text-gray-300 text-xs leading-relaxed font-light">
-                DPR sends microwave pulses down. We calculate distance by counting the milliseconds it takes for the pulse to bounce off rain and return.
+                Use the slider to adjust the delay. Press <strong>Fire Pulse</strong> to watch the pulse travel down and bounce back to the satellite.
               </p>
             </div>
 
-            {/* Timing Challenge Puzzle Card */}
+            {/* Timing Challenge */}
             <div className="glass-panel p-5 rounded-xl border border-gray-850 bg-slate-950/40 flex flex-col gap-4">
               <div className="flex items-center gap-2 border-b border-gray-850 pb-2">
                 <QuestionIcon className="w-4.5 h-4.5 text-orange-400" />
-                <span className="text-xs font-bold text-white">Brilliant Challenge: Radar Range Logic</span>
+                <span className="text-xs font-bold text-white">Predict & Calculate Range</span>
               </div>
 
               {/* Time delay slider */}
               <div className="flex flex-col gap-2 p-3 rounded bg-slate-900 border border-gray-850">
                 <label className="text-xs font-semibold text-gray-400 flex justify-between">
-                  <span>Simulate Echo Delay:</span>
+                  <span>Adjust Echo Return Delay:</span>
                   <span className="text-orange-400 font-mono font-bold">{timeDelay} microseconds (μs)</span>
                 </label>
                 <input 
@@ -390,19 +410,13 @@ export default function StoryPage() {
 
               <div className="flex flex-col gap-2">
                 <p className="text-xs text-gray-400 leading-normal">
-                  "If the round-trip delay is exactly <span className="text-white font-bold">{timeDelay} μs</span>, how far away is the storm?"
+                  "If the echo takes exactly <span className="text-white font-bold">{timeDelay} μs</span> to return, what is the distance to the storm?"
                 </p>
-                <div className="p-3 bg-slate-900 border border-gray-850 rounded text-[10px] font-mono text-gray-500">
-                  Hint: speed of light is 300,000 km/s (or 0.3 km per μs). The round-trip distance is speed * delay, but range to storm is exactly HALF of that total path.
-                </div>
                 
                 <div className="flex gap-2 items-center mt-1">
                   <input
-                    type="number"
-                    placeholder="Enter range (km)"
-                    value={c2Input}
-                    onChange={(e) => setC2Input(e.target.value)}
-                    disabled={c2Checked}
+                    type="number" placeholder="Enter range (km)" value={c2Input}
+                    onChange={(e) => setC2Input(e.target.value)} disabled={c2Checked}
                     className="flex-1 bg-slate-900 border border-gray-800 rounded-lg p-2.5 text-xs focus:outline-none focus:border-orange-500"
                   />
                   {!c2Checked ? (
@@ -428,21 +442,36 @@ export default function StoryPage() {
 
               {c2Checked && (
                 <div className="p-3 rounded bg-slate-900 border border-gray-850 text-xs animate-fadeIn text-gray-400 leading-relaxed font-light">
-                  {c2Correct ? (
-                    <div className="flex items-center gap-1.5 text-emerald-400 font-bold mb-1">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Correct!</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-red-400 font-bold mb-1">
-                      <XCircle className="w-4 h-4" />
-                      <span>Incorrect</span>
+                  <div className="flex items-center gap-1.5 font-bold mb-1">
+                    {c2Correct ? (
+                      <span className="text-emerald-400 flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Correct Calculation!</span>
+                    ) : (
+                      <span className="text-red-400 flex items-center gap-1.5"><XCircle className="w-4 h-4" /> Incorrect</span>
+                    )}
+                  </div>
+                  
+                  {/* Level-adjusted Explanation */}
+                  {level === "beginner" && (
+                    <p className="leading-relaxed font-light">
+                      <strong>The Principle:</strong> Microwaves travel at the speed of light. Because the pulse must go down and bounce back, the distance is exactly half the total flight time.
+                    </p>
+                  )}
+                  {level === "intermediate" && (
+                    <p className="leading-relaxed font-light">
+                      <strong>Explanation:</strong> {"$Distance = \\frac{\\text{speed of light} \\cdot t}{2}$"}. At {"$0.3\\text{ km}/\\mu\\text{s}$"}, the range for {timeDelay} {"$\\mu\\text{s}$"} is exactly {((0.3 * timeDelay) / 2).toFixed(2)} km.
+                    </p>
+                  )}
+                  {level === "advanced" && (
+                    <div className="flex flex-col gap-2 font-light">
+                      <p>
+                        <strong>Formalization:</strong> The distance $r$ to the target bin is defined by:
+                        {"\\[r = \\frac{c \\cdot \\tau}{2}\\]"}
+                        where {"$c \\approx 2.9979 \\times 10^8\\text{ m/s}$"} and {"$\\tau$"} is the round-trip echo delay.
+                      </p>
+                      <span className="text-[9px] font-mono text-gray-500">Related variable: `zFactorMeasured`.</span>
                     </div>
                   )}
-                  <p>
-                    Target Range: **{((0.3 * timeDelay) / 2).toFixed(1)} km**. 
-                    Range gates are calculated using: {"$Range = \\frac{0.3 \\times t}{2}$"} where {"$t$"} is the return trip delay.
-                  </p>
+
                   {c2Correct && (
                     <button 
                       onClick={() => setChapter(3)}
@@ -456,31 +485,27 @@ export default function StoryPage() {
             </div>
           </div>
 
-          {/* Interactive radar simulator screen */}
-          <div className="lg:col-span-7 h-[400px] border border-gray-800 bg-slate-950/40 rounded-xl relative overflow-hidden flex flex-col justify-between p-4">
+          {/* Interactive pulse visualizer */}
+          <div className="lg:col-span-7 h-[400px] border border-gray-800 bg-slate-950 rounded-xl relative overflow-hidden flex flex-col justify-between p-4">
             <div className="flex justify-between items-start">
-              <span className="text-[9px] text-gray-500 font-mono">RADAR GATE SCANNER VIEW</span>
+              <span className="text-[9px] text-gray-500 font-mono">PULSE TRAVEL SIMULATOR</span>
               <button 
-                onClick={triggerPulse} 
-                disabled={pulseActive}
+                onClick={triggerPulse} disabled={pulseActive}
                 className="py-1 px-3 bg-blue-600 hover:bg-blue-500 rounded text-[9px] font-bold text-white disabled:opacity-40"
               >
                 Fire Pulse
               </button>
             </div>
 
-            {/* Radar column and profile plot */}
             <div className="flex-1 grid grid-cols-2 gap-6 items-end mt-4">
-              {/* Beam column visual */}
               <div className="h-full border border-gray-900 rounded-lg relative overflow-hidden flex flex-col justify-end bg-slate-950/20">
-                {/* Cloud layer */}
                 <div className="absolute top-[35%] left-0 w-full h-[30%] bg-slate-400/5 border-y border-dashed border-gray-800 flex items-center justify-center text-[9px] text-gray-500">
                   Melting Layer
                 </div>
 
                 {pulseActive && (
                   <div 
-                    className="absolute w-full h-1 bg-yellow-400/80 animate-pulse shadow-glow shadow-yellow-400/30"
+                    className="absolute w-full h-1 bg-yellow-400/80 animate-pulse shadow-glow"
                     style={{ top: `${pulsePosition}%` }}
                   />
                 )}
@@ -510,31 +535,31 @@ export default function StoryPage() {
         </div>
       )}
 
-      {/* --- CHAPTER 3: MEET KU AND KA BANDS --- */}
+      {/* --- CHAPTER 3: SCATTERING PHYSICS --- */}
       {chapter === 3 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-3">
-              <h2 className="text-lg font-bold text-white">Mie Scattering & DSD Ambiguity</h2>
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] text-gray-500 font-mono font-bold uppercase tracking-widest">Step 1: Observe & Experiment</span>
               <p className="text-gray-300 text-xs leading-relaxed font-light">
-                A single reflectivity reading ($Z$) cannot resolve drop size distributions. We need two frequencies to differentiate small abundant drops from large sparse drops.
+                Use the slider on the right to adjust the drop size $D_m$. Watch how the Ku-band (Rayleigh) and Ka-band (Mie) curves react as drop sizes grow.
               </p>
             </div>
 
-            {/* Droplet Puzzle Challenge Card */}
+            {/* Scattering Challenge */}
             <div className="glass-panel p-5 rounded-xl border border-gray-850 bg-slate-950/40 flex flex-col gap-4">
               <div className="flex items-center gap-2 border-b border-gray-850 pb-2">
                 <QuestionIcon className="w-4.5 h-4.5 text-orange-400" />
-                <span className="text-xs font-bold text-white">Brilliant Challenge: scattering scale</span>
+                <span className="text-xs font-bold text-white">Predict & Discover Patterns</span>
               </div>
 
               <div className="flex flex-col gap-1.5 p-3 rounded bg-slate-900 border border-gray-850">
                 <label className="text-xs font-semibold text-gray-400 flex justify-between">
-                  <span>Simulated Drop Size ($D_m$):</span>
-                  <span className="text-orange-400 font-mono font-bold">{dropSize.toFixed(1)} mm</span>
+                  <span>Mean Drop Size (Dm):</span>
+                  <span className="text-orange-400 font-mono font-bold">{dropSize.toFixed(2)} mm</span>
                 </label>
                 <input 
-                  type="range" min="1.0" max="3.5" step="0.25" value={dropSize}
+                  type="range" min="0.5" max="3.5" step="0.1" value={dropSize}
                   onChange={(e) => {
                     if (!c3Checked) setDropSize(Number(e.target.value));
                   }}
@@ -543,29 +568,29 @@ export default function StoryPage() {
               </div>
 
               <p className="text-xs text-gray-300 font-light leading-relaxed">
-                If reflectivity $Z$ is calculated by integrating drop size concentrations ($Z = \int D^6 N(D) dD$), how does the backscattering of a single massive 3.0 mm raindrop compare to a single 1.0 mm raindrop?
+                Why does Ka-band reflectivity drop below Ku-band (creating a gap called DFR) once droplets exceed 1.2 mm, even though both beams hit the exact same raindrops?
               </p>
 
               <div className="flex flex-col gap-2.5">
                 {[
-                  "A 3.0mm drop scatters exactly 3 times more radar energy.",
-                  "A 3.0mm drop scatters exactly 9 times more radar energy.",
-                  "A 3.0mm drop scatters exactly 729 times more radar energy (3^6)."
+                  "Ka-band is absorbed by the surrounding nitrogen in the air.",
+                  "Ka-band wavelength (8.4mm) is close to the raindrop size, causing complex self-interference (Mie scattering) which saturates the signal.",
+                  "Ku-band reflects off water, while Ka-band only reflects off ice."
                 ].map((opt, idx) => (
                   <button
                     key={idx}
                     onClick={() => {
-                      if (!c3Checked) setC3Answer(idx);
+                      if (!c3Checked) setC3Prediction(idx);
                     }}
                     disabled={c3Checked}
                     className={`p-3 text-left rounded-lg border text-xs transition-all ${
                       c3Checked 
-                        ? idx === 2 
+                        ? idx === 1 
                           ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400 font-semibold"
-                          : c3Answer === idx 
+                          : c3Prediction === idx 
                             ? "bg-red-950/25 border-red-500/30 text-red-400"
-                            : "bg-slate-950 border-gray-900 text-gray-600 opacity-60"
-                        : c3Answer === idx 
+                            : "bg-slate-950 border-gray-900 text-gray-650 opacity-60"
+                        : c3Prediction === idx 
                           ? "bg-blue-900/10 border-blue-500/40 text-blue-400 font-semibold"
                           : "bg-slate-900/40 border-gray-800 text-gray-400 hover:text-white"
                     }`}
@@ -579,29 +604,45 @@ export default function StoryPage() {
                 <button
                   onClick={() => {
                     setC3Checked(true);
-                    if (c3Answer === 2) setC3Correct(true);
+                    if (c3Prediction === 1) setC3Correct(true);
                   }}
-                  disabled={c3Answer === null}
+                  disabled={c3Prediction === null}
                   className="py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-xs font-bold text-white disabled:opacity-40"
                 >
-                  Submit Answer
+                  Submit Prediction
                 </button>
               ) : (
                 <div className="p-3 rounded bg-slate-900 border border-gray-850 text-xs animate-fadeIn text-gray-400 leading-relaxed font-light">
-                  {c3Correct ? (
-                    <div className="flex items-center gap-1.5 text-emerald-400 font-bold mb-1">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Correct!</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-red-400 font-bold mb-1">
-                      <XCircle className="w-4 h-4" />
-                      <span>Incorrect</span>
+                  <div className="flex items-center gap-1.5 font-bold mb-1">
+                    {c3Correct ? (
+                      <span className="text-emerald-400 flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Correct Discovery!</span>
+                    ) : (
+                      <span className="text-red-400 flex items-center gap-1.5"><XCircle className="w-4 h-4" /> Prediction Incorrect</span>
+                    )}
+                  </div>
+                  
+                  {/* Level-adjusted Explanation */}
+                  {level === "beginner" && (
+                    <p className="leading-relaxed font-light">
+                      <strong>The Principle:</strong> Shorter waves (Ka) struggle to resolve large objects cleanly, while longer waves (Ku) handle them without losing reflectivity. The difference between their reflections tells us drop sizes.
+                    </p>
+                  )}
+                  {level === "intermediate" && (
+                    <p className="leading-relaxed font-light">
+                      <strong>Explanation:</strong> Smaller drops follow Rayleigh scattering ({"$Z \\propto D^6$"} for both bands). Larger drops cross into Mie scattering for Ka-band, causing it to roll off and creating the Dual Frequency Ratio (DFR).
+                    </p>
+                  )}
+                  {level === "advanced" && (
+                    <div className="flex flex-col gap-2 font-light">
+                      <p>
+                        <strong>Formalization:</strong> The Dual Frequency Ratio is defined by:
+                        {"\\[DFR = Z_{e,\\text{Ku}} - Z_{e,\\text{Ka}}\\]"}
+                        In the Mie scattering regime {"($D_m > 1.2$ mm)"}, the backscattering cross-section {"$\\sigma_b(D_m)$"} at Ka-band is smaller than its Rayleigh approximation, making {"$DFR$"} a unique function of {"$D_m$"}.
+                      </p>
+                      <span className="text-[9px] font-mono text-gray-500">Related variables: `zFactorCorrected`, `meanDomeDiameter`.</span>
                     </div>
                   )}
-                  <p>
-                    Because Rayleigh scattering scales exponentially as $D^6$, increasing the diameter by a factor of 3 boosts scattering power by $3^6 = 729$. This explains why a few massive drops look like a torrential downpour, creating massive Z-R ambiguities that only dual-frequency DFR can resolve.
-                  </p>
+
                   {c3Correct && (
                     <button 
                       onClick={() => setChapter(4)}
@@ -615,30 +656,26 @@ export default function StoryPage() {
             </div>
           </div>
 
-          {/* Interactive DFR Curve Visualizer */}
+          {/* Interactive DFR Curves sandbox */}
           <div className="glass-panel p-6 rounded-xl border border-gray-800 bg-slate-950/40 flex flex-col justify-between gap-4">
             <div className="flex flex-col gap-1 border-b border-gray-850 pb-2">
               <span className="text-[9px] text-gray-500 font-mono uppercase tracking-wider">INTUITIVE PHYSICS SANDBOX</span>
               <h3 className="text-xs font-bold text-white uppercase">Rayleigh vs. Mie Scattering (DFR)</h3>
             </div>
 
-            {/* SVG Plot */}
             <div className="h-44 border-l border-b border-gray-850 relative mt-4 flex items-end pl-8 pb-4 pr-2">
-              {/* Y Axis Labels */}
               <div className="absolute left-1 top-0 bottom-4 text-[8px] text-gray-500 font-mono flex flex-col justify-between pointer-events-none select-none">
                 <span>40 dBZ</span>
                 <span>20 dBZ</span>
                 <span>0 dBZ</span>
               </div>
 
-              {/* Curves SVG */}
               <svg className="w-full h-full absolute inset-y-0 right-2 left-8 h-[calc(100%-16px)] w-[calc(100%-40px)] overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-                {/* Vertical grid lines */}
                 <line x1="16.6" y1="0" x2="16.6" y2="100" stroke="#1f2937" strokeWidth="0.5" strokeDasharray="2" />
                 <line x1="50" y1="0" x2="50" y2="100" stroke="#1f2937" strokeWidth="0.5" strokeDasharray="2" />
                 <line x1="83.3" y1="0" x2="83.3" y2="100" stroke="#1f2937" strokeWidth="0.5" strokeDasharray="2" />
 
-                {/* Plot Shaded DFR area */}
+                {/* Shaded DFR area */}
                 <polygon 
                   points={(() => {
                     const kuPts: string[] = [];
@@ -651,14 +688,14 @@ export default function StoryPage() {
 
                       const valKa = valKu - (d > 0.5 ? 2.5 * Math.pow(d - 0.5, 1.8) : 0);
                       const yKa = 100 - (Math.max(valKa, 0) / 40) * 100;
-                      kaPts.unshift(`${x},${yKa}`); // reverse order for polygon
+                      kaPts.unshift(`${x},${yKa}`);
                     }
                     return [...kuPts, ...kaPts].join(" ");
                   })()}
                   fill="rgba(139, 92, 246, 0.08)"
                 />
 
-                {/* Ku Rayleigh Curve (Blue) */}
+                {/* Ku Curve */}
                 <path 
                   d={(() => {
                     const pts: string[] = [];
@@ -675,7 +712,7 @@ export default function StoryPage() {
                   fill="none" stroke="#3b82f6" strokeWidth="2.5"
                 />
 
-                {/* Ka Mie Curve (Orange) */}
+                {/* Ka Curve */}
                 <path 
                   d={(() => {
                     const pts: string[] = [];
@@ -693,7 +730,7 @@ export default function StoryPage() {
                   fill="none" stroke="#f97316" strokeWidth="2.5"
                 />
 
-                {/* Vertical slider tracker line */}
+                {/* Tracker Indicator */}
                 {(() => {
                   const x = ((dropSize - 0.5) / 3.0) * 100;
                   const currentKu = 10 + 25 * Math.log10(dropSize / 0.5);
@@ -711,7 +748,6 @@ export default function StoryPage() {
                 })()}
               </svg>
 
-              {/* X Axis Labels */}
               <div className="absolute bottom-1 left-8 right-2 text-[8px] text-gray-500 font-mono flex justify-between pointer-events-none select-none">
                 <span>0.5 mm</span>
                 <span>1.5 mm</span>
@@ -720,7 +756,7 @@ export default function StoryPage() {
               </div>
             </div>
 
-            {/* DFR explanation text */}
+            {/* Readout */}
             {(() => {
               const currentKu = 10 + 25 * Math.log10(dropSize / 0.5);
               const currentKa = currentKu - (dropSize > 0.5 ? 2.5 * Math.pow(dropSize - 0.5, 1.8) : 0);
@@ -734,11 +770,11 @@ export default function StoryPage() {
                   </div>
                   {dropSize <= 1.2 ? (
                     <p>
-                      <span className="text-blue-400 font-bold">Rayleigh scattering:</span> Raindrops are small relative to both wavelengths. Reflectivity values are identical. DFR is zero, making single-frequency radar retrieval highly ambiguous.
+                      Both frequencies mirror each other. This is the Rayleigh zone.
                     </p>
                   ) : (
                     <p>
-                      <span className="text-orange-400 font-bold">Mie scattering:</span> Raindrops are close to Ka-band wavelength (8.4mm), causing its signal to roll off. The diverging gap (DFR) uniquely resolves the mean drop size without guessing.
+                      Curves diverge. The gap size reveals the exact mean drop diameter ($D_m$).
                     </p>
                   )}
                 </div>
@@ -748,7 +784,7 @@ export default function StoryPage() {
         </div>
       )}
 
-      {/* --- CHAPTER 4: THE JOURNEY OF A RADAR PULSE --- */}
+      {/* --- CHAPTER 4: PULSE JOURNEY STEPPER --- */}
       {chapter === 4 && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Steps sidebar */}
@@ -758,14 +794,14 @@ export default function StoryPage() {
                 key={stage.title}
                 onClick={() => {
                   setJourneyStep(idx);
-                  setC4Answer(null);
+                  setC4Prediction(null);
                   setC4Checked(false);
                   setC4Correct(false);
                 }}
                 className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
                   journeyStep === idx 
                     ? "bg-slate-800 text-white border-orange-500/40" 
-                    : "bg-slate-900/60 border-gray-850 text-gray-400 hover:text-white"
+                    : "bg-slate-900/60 border-gray-855 text-gray-400 hover:text-white"
                 }`}
               >
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
@@ -781,16 +817,15 @@ export default function StoryPage() {
           {/* Stepper display and review challenge card */}
           <div className="lg:col-span-8 flex flex-col gap-6">
             <div className="glass-panel p-6 rounded-xl border border-gray-800 flex flex-col gap-4">
-              <span className="text-[9px] text-orange-400 font-mono font-bold uppercase tracking-wider">STAGE {journeyStep + 1} OF 6</span>
+              <span className="text-[9px] text-orange-400 font-mono font-bold uppercase tracking-wider">STAGE {journeyStep + 1} OF 5</span>
               <h3 className="text-md font-bold text-white">{journeyStages[journeyStep].title}</h3>
-              <p className="text-gray-400 text-xs font-light leading-relaxed">{journeyStages[journeyStep].desc}</p>
             </div>
 
-            {/* Brilliant review challenge */}
-            <div className="glass-panel p-6 rounded-xl border border-gray-800 flex flex-col gap-4 bg-slate-950/20">
+            {/* Predict Challenge */}
+            <div className="glass-panel p-6 rounded-xl border border-gray-800 flex flex-col gap-4 bg-slate-955/20">
               <div className="flex items-center gap-2 border-b border-gray-850 pb-2">
                 <QuestionIcon className="w-4.5 h-4.5 text-orange-400" />
-                <span className="text-xs font-bold text-white">Review Concept: Unlock next stage</span>
+                <span className="text-xs font-bold text-white">Predict & Verify Concept</span>
               </div>
               
               <p className="text-xs text-gray-300 font-light leading-normal">{journeyStages[journeyStep].question}</p>
@@ -800,17 +835,17 @@ export default function StoryPage() {
                   <button
                     key={idx}
                     onClick={() => {
-                      if (!c4Checked) setC4Answer(idx);
+                      if (!c4Checked) setC4Prediction(idx);
                     }}
                     disabled={c4Checked}
                     className={`p-3 text-left rounded-lg border text-xs transition-all ${
                       c4Checked 
                         ? idx === journeyStages[journeyStep].correct 
                           ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400 font-semibold"
-                          : c4Answer === idx 
+                          : c4Prediction === idx 
                             ? "bg-red-950/25 border-red-500/30 text-red-400"
-                            : "bg-slate-950 border-gray-900 text-gray-600 opacity-60"
-                        : c4Answer === idx 
+                            : "bg-slate-955 border-gray-900 text-gray-600 opacity-60"
+                        : c4Prediction === idx 
                           ? "bg-blue-900/10 border-blue-500/40 text-blue-400 font-semibold"
                           : "bg-slate-900/40 border-gray-850 text-gray-400 hover:text-white"
                     }`}
@@ -824,32 +859,35 @@ export default function StoryPage() {
                 <button
                   onClick={() => {
                     setC4Checked(true);
-                    if (c4Answer === journeyStages[journeyStep].correct) setC4Correct(true);
+                    if (c4Prediction === journeyStages[journeyStep].correct) setC4Correct(true);
                   }}
-                  disabled={c4Answer === null}
+                  disabled={c4Prediction === null}
                   className="py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-xs font-bold text-white disabled:opacity-40"
                 >
-                  Verify Concept
+                  Verify Prediction
                 </button>
               ) : (
                 <div className="p-3 rounded bg-slate-900 border border-gray-850 text-xs animate-fadeIn text-gray-400 leading-normal font-light">
-                  {c4Correct ? (
-                    <div className="flex items-center gap-1.5 text-emerald-400 font-bold mb-1">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Correct! Concept Mastered.</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-red-400 font-bold mb-1">
-                      <XCircle className="w-4 h-4" />
-                      <span>Incorrect</span>
-                    </div>
-                  )}
-                  <p>{journeyStages[journeyStep].explanation}</p>
-                  {c4Correct && journeyStep < 5 && (
+                  <div className="flex items-center gap-1.5 font-bold mb-1">
+                    {c4Correct ? (
+                      <span className="text-emerald-400 flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Concept Solved!</span>
+                    ) : (
+                      <span className="text-red-400 flex items-center gap-1.5"><XCircle className="w-4 h-4" /> Incorrect</span>
+                    )}
+                  </div>
+                  
+                  {/* Level-adjusted Explanation */}
+                  <p className="mt-1">
+                    {level === "beginner" && journeyStages[journeyStep].explain.beginner}
+                    {level === "intermediate" && journeyStages[journeyStep].explain.intermediate}
+                    {level === "advanced" && journeyStages[journeyStep].explain.advanced}
+                  </p>
+
+                  {c4Correct && journeyStep < 4 && (
                     <button 
                       onClick={() => {
                         setJourneyStep(prev => prev + 1);
-                        setC4Answer(null);
+                        setC4Prediction(null);
                         setC4Checked(false);
                         setC4Correct(false);
                       }}

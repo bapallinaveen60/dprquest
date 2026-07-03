@@ -13,7 +13,7 @@ export default function TutorPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       sender: "tutor",
-      text: "Hello! I am your GPM-DPR AI Tutor. I can answer questions about satellite precipitation radar retrieval algorithms, Ku/Ka bands, drop sizes, or path attenuation. Feel free to ask me anything or click one of the suggested prompts below!"
+      text: "Hello! I am your GPM Socratic Guide. Rather than feeding you definitions, I will help you discover the concepts yourself using analogies and questions. What part of the satellite radar retrieval are you investigating today?"
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,49 +59,51 @@ export default function TutorPage() {
 
   const getLocalTutorReply = (question: string): string => {
     const q = question.toLowerCase();
-    if (q.includes("dfr") || q.includes("dual frequency") || q.includes("15")) {
+    if (q.includes("dfr") || q.includes("dual frequency") || q.includes("15") || q.includes("frequency")) {
       return (
-        "### Dual-Frequency Ratio (DFR) - Explained Simply\n\n" +
-        "Imagine you are shining two different flashlights into a foggy forest. One flashlight has a wide beam (Ku-band), and the other has a very fine, bright beam (Ka-band).\n\n" +
-        "1. **Rayleigh scattering (Small drops):** When the fog consists of tiny droplets, both flashlights shine right through, and the backscatter is identical. DFR is 0.\n" +
-        "2. **Mie scattering (Big drops):** As the drops grow, the Ka-band (magenta) flashlight starts hitting the drops like tiny mirrors, scattering and rolling off. The Ku-band (cyan) flashlight is larger, and continues reflecting power. The difference in their reflected echoes ($dBZ_{ku} - dBZ_{ka}$) is the **DFR**.\n\n" +
-        "By measuring the size of this difference, we can instantly tell whether the storm contains tiny mist particles or large, heavy raindrops. This is how we retrieve the average drop diameter ($D_m$)."
+        "### Let's think about DFR (Dual-Frequency Ratio)\n\n" +
+        "Imagine you have two different sizes of balls (like golf balls and basketballs) and you throw them into a forest of trees. Which one gets deflected or stopped more easily by small branches?\n\n" +
+        "This is what happens when GPM shines a longer Ku-band wave and a shorter Ka-band wave into rain. What do you think happens to the shorter Ka-band wave when it hits large raindrops compared to the longer Ku-band wave?\n\n" +
+        "1. Does it bounce back identically?\n" +
+        "2. Or does it get blocked and scatter differently (Mie scattering)?\n\n" +
+        "Let me know what you think!"
       );
     }
-    if (q.includes("attenuation") || q.includes("weak") || q.includes("loss")) {
+    if (q.includes("attenuation") || q.includes("weak") || q.includes("loss") || q.includes("absorption")) {
       return (
-        "### Why Attenuation Matters in Radar\n\n" +
-        "**Attenuation** is the loss of radar beam power as it travels through precipitation. It is caused by two main factors:\n" +
-        "- **Absorption:** Droplets absorb microwave energy and convert it to heat.\n" +
-        "- **Scattering:** Droplets deflect the energy away from the radar receiver's path.\n\n" +
-        "If you don't correct for this signal loss, the radar echo returning from near the ground will look extremely weak, making a torrential flood look like a light drizzle. GPM DPR uses mathematical corrections (like Hitschfeld-Bordan) to step-by-step rebuild the true signal strength down the vertical column."
+        "### Attenuation: The Fog Analogy\n\n" +
+        "Have you ever driven in heavy fog with your high beams on? The light gets dimmer as it goes forward because the fog absorbs and scatters the light. That's attenuation.\n\n" +
+        "Radar beams do the same thing in rain columns. If the beam loses strength as it travels down, what will happen to the measured reflectivity values at the bottom of the storm?\n\n" +
+        "Will they look smaller or larger than they actually are? And how can we restore the lost energy?"
       );
     }
-    if (q.includes("type") || q.includes("determined") || q.includes("csf") || q.includes("classify")) {
+    if (q.includes("type") || q.includes("determined") || q.includes("csf") || q.includes("classify") || q.includes("convective") || q.includes("stratiform")) {
       return (
-        "### How GPM Determines Rain Type (CSF)\n\n" +
-        "The Classification (CSF) module analyzes the horizontal and vertical shape of the radar profile to determine rain type:\n" +
-        "1. **Stratiform (Uniform Rain):** If the radar detects a distinct **melting bright band** peak near the freezing level ($0^\\circ\\text{C}$ isotherm), it is classified as Stratiform.\n" +
-        "2. **Convective (Violent Storms):** If there is no bright band, but the reflectivity is high ($> 39\\text{ dBZ}$) in the vertical core, it indicates rapid updrafts, classifying it as Convective.\n" +
-        "3. **Other:** Includes shallow showers that don't reach the freezing level, or high-altitude ice clouds."
+        "### Convective vs. Stratiform Detective\n\n" +
+        "Imagine two types of storms: one is a quiet, steady rain that falls in even sheets; the other is a violent boiling pot of water with strong upward winds mixing ice and water.\n\n" +
+        "Which of these two storms do you think will form a clean, horizontal melting line (Bright Band) as ice turns to rain?\n\n" +
+        "And what will happen in the violent updraft storm?"
       );
     }
     if (q.includes("bright band") || q.includes("melting") || q.includes("freezing")) {
       return (
-        "### The Radar Bright Band Melting Layer\n\n" +
-        "The **Bright Band** is a prominent horizontal line of strong radar reflectivity observed just below the freezing level. It is caused by melting snow:\n" +
-        "- **Above Freezing:** Precipitation is dry snow. Ice has a low dielectric constant ($|K|^2 \\approx 0.176$), so it reflects weakly.\n" +
-        "- **Melting Layer:** As snowflakes fall below the freezing level, they begin melting from the outside, getting coated in liquid water. Liquid water has a high dielectric constant ($|K|^2 \\approx 0.93$). The radar now sees a giant water drop the size of a snowflake, creating a massive reflectivity spike.\n" +
-        "- **Below Freezing:** Snow completes melting, collapsing into compact, fast-falling raindrops. The particles accelerate ($1\\text{ m/s} \\rightarrow 8\\text{ m/s}$), decreasing their concentrations in space, causing reflectivity to drop back down."
+        "### The Mystery of the Melting Layer\n\n" +
+        "Let's imagine you are looking at a dry snowflake falling through the air. Now, imagine it starts to melt. It becomes covered in a wet water film, but it hasn't collapsed into a tiny drop yet.\n\n" +
+        "Water reflects radar signals much better than dry ice. If you have a large particle that is coated in liquid water, what do you think it looks like to the radar?\n\n" +
+        "Does it look like a small raindrop, or does it look like a giant water mirror?\n\n" +
+        "Tell me your thoughts on how this affects the radar reflection intensity at that altitude!"
       );
     }
 
     return (
-      "I understand you are asking about GPM-DPR Level-2 algorithms. Here are some key points:\n\n" +
-      "- **Level-2 pipeline:** Runs PRE (preparation), VER (heights), CSF (classification), DSD (particle size), SRT (attenuation), and SLV (solver).\n" +
-      "- **Dual Frequencies:** Ku (13.6 GHz) and Ka (35.5 GHz) allow GPM to separate rainfall intensity from droplet size distribution.\n" +
-      "- **SRT:** The Surface Reference Technique calculates Path Integrated Attenuation (PIA) using the reduction in the surface echo.\n\n" +
-      "Could you please clarify your question? Or try clicking one of the suggested prompts below!"
+      "Hello! I am your GPM Socratic Guide.\n\n" +
+      "I won't give you the answers directly—instead, I'm here to help you discover them yourself. What concept are you exploring right now?\n\n" +
+      "- **Bright Band / Melting Layer** (Why does it spike?)\n" +
+      "- **Ku vs. Ka / DFR** (Why do different frequencies respond differently?)\n" +
+      "- **Attenuation / Signal Loss** (What absorbs the radar pulse?)\n" +
+      "- **SRT / Ocean Mirror** (How does the sea surface help us?)\n" +
+      "- **CSF / Classification** (Stratiform vs. Convective rain)\n" +
+      "- **Retrieval Pipeline** (Why does order matter?)"
     );
   };
 

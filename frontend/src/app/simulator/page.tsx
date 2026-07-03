@@ -71,6 +71,18 @@ export default function SimulatorPage() {
   const [simData, setSimData] = useState<SimulationData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Prediction states
+  const [predSelected, setPredSelected] = useState<number | null>(null);
+  const [predChecked, setPredChecked] = useState(false);
+  const [showPredChallenge, setShowPredChallenge] = useState(true);
+
+  // Reset prediction challenge when slider inputs change
+  useEffect(() => {
+    setPredSelected(null);
+    setPredChecked(false);
+    setShowPredChallenge(true);
+  }, [stormHeight, freezingLevel, rainRate, dmSurface, noiseLevel]);
+
   const runSimulation = async () => {
     setIsLoading(true);
     try {
@@ -343,14 +355,86 @@ export default function SimulatorPage() {
               />
             </div>
 
-            <button
-              onClick={runSimulation}
-              disabled={isLoading}
-              className="mt-2 w-full inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-orange-600 hover:bg-orange-500 font-bold text-white shadow-lg disabled:opacity-40 transition-all text-xs"
-            >
-              <Play className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-              <span>{isLoading ? "Running Solver..." : "Simulate & Retrieve"}</span>
-            </button>
+            {/* --- Prediction Checkpoint --- */}
+            {showPredChallenge ? (
+              <div className="flex flex-col gap-3 p-4 rounded-xl bg-slate-950/60 border border-orange-950/20 text-xs animate-fadeIn mt-2">
+                <div className="flex items-center gap-1.5 font-bold text-white border-b border-gray-900 pb-1.5">
+                  <span className="text-orange-400">💡 Prediction Checkpoint</span>
+                </div>
+                
+                <p className="text-[11px] text-gray-400 leading-normal">
+                  If you simulate this storm profile (Rain: {rainRate} mm/h, Dm: {dmSurface} mm), how will the Ka-band total path attenuation (PIA) compare to the Ku-band?
+                </p>
+
+                <div className="flex flex-col gap-2">
+                  {[
+                    "Both will be identical.",
+                    "Ka-band attenuation will be much higher than Ku-band.",
+                    "Ku-band attenuation will be higher than Ka-band."
+                  ].map((opt, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        if (!predChecked) setPredSelected(idx);
+                      }}
+                      disabled={predChecked}
+                      className={`p-2.5 text-left rounded border text-[10px] transition-all ${
+                        predChecked
+                          ? idx === 1
+                            ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400 font-semibold"
+                            : predSelected === idx
+                              ? "bg-red-950/25 border-red-500/30 text-red-400"
+                              : "bg-slate-950 border-gray-900 text-gray-600 opacity-60"
+                          : predSelected === idx
+                            ? "bg-blue-900/10 border-blue-500/40 text-blue-400 font-semibold"
+                            : "bg-slate-900/40 border-gray-800 text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+
+                {!predChecked ? (
+                  <button
+                    onClick={() => setPredChecked(true)}
+                    disabled={predSelected === null}
+                    className="w-full py-2 bg-slate-900 border border-gray-800 text-white rounded font-bold text-[10px] hover:bg-slate-800"
+                  >
+                    Submit Prediction
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2 text-[10px] leading-normal text-gray-400 font-light mt-1">
+                    <p>
+                      {predSelected === 1 ? (
+                        <span className="text-emerald-400 font-semibold">Correct!</span>
+                      ) : (
+                        <span className="text-red-400 font-semibold">Incorrect.</span>
+                      )}{" "}
+                      Ka-band (35.5 GHz) has a shorter wavelength that is closer to raindrop diameters, making it experience much higher scattering and absorption (attenuation) than Ku-band (13.6 GHz).
+                    </p>
+                    <button
+                      onClick={() => {
+                        setShowPredChallenge(false);
+                        runSimulation();
+                      }}
+                      className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded font-bold text-[10px] transition-all"
+                    >
+                      Unlock & Run Simulation
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={runSimulation}
+                disabled={isLoading}
+                className="mt-2 w-full inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-orange-600 hover:bg-orange-500 font-bold text-white shadow-lg disabled:opacity-40 transition-all text-xs"
+              >
+                <Play className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+                <span>{isLoading ? "Running Solver..." : "Simulate & Retrieve"}</span>
+              </button>
+            )}
           </div>
 
           {/* Right panel: Profile Graphs (8 cols) */}

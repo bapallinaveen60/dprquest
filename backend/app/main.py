@@ -111,92 +111,61 @@ def upload_granule_endpoint(file: UploadFile = File(...)):
 def tutor_ask_endpoint(req: TutorRequest):
     q = req.question.lower().strip()
     
-    # Simple semantic rule-based chatbot for satellite radar learning
-    if "dfr" in q or "dual frequency ratio" in q:
+    # Socratic Socratic dialogues for satellite radar learning
+    if "dfr" in q or "dual frequency ratio" in q or "frequency" in q:
         reply = (
-            "### Dual-Frequency Ratio (DFR)\n\n"
-            "The **Dual-Frequency Ratio (DFR)** is defined as the difference between the radar reflectivity factors (in decibels) "
-            "measured at Ku-band (13.6 GHz) and Ka-band (35.5 GHz):\n\n"
-            "$$\\text{DFR} = dBZ_{ku} - dBZ_{ka}$$\n\n"
-            "**Why does DFR matter?**\n"
-            "1. **Drop Size Estimation:** For small droplets, both Ku and Ka bands experience Rayleigh scattering, so DFR is close to 0 dB. "
-            "However, as the drops get larger, Ka-band reflectivity rolls off due to Mie scattering, while Ku-band continues to increase. "
-            "This creates a positive DFR value, allowing scientists to estimate the **mass-weighted mean diameter ($D_m$)** directly.\n"
-            "2. **Attenuation Separation:** Ka-band is much more attenuated by rain than Ku-band. By comparing the rate of signal decay between the two bands "
-            "as they penetrate the storm, we can calculate the attenuation profile and correct the reflectivity values."
+            "### Let's think about DFR (Dual-Frequency Ratio)\n\n"
+            "Imagine you have two different sizes of balls (like golf balls and basketballs) and you throw them into a forest of trees. Which one gets deflected or stopped more easily by small branches?\n\n"
+            "This is what happens when GPM shines a longer Ku-band wave and a shorter Ka-band wave into rain. What do you think happens to the shorter Ka-band wave when it hits large raindrops compared to the longer Ku-band wave?\n\n"
+            "1. Does it bounce back identically?\n"
+            "2. Or does it get blocked and scatter differently (Mie scattering)?\n\n"
+            "Let me know what you think!"
         )
-    elif "bright band" in q or "melting layer" in q or "freezing level" in q:
+    elif "bright band" in q or "melting" in q or "freezing" in q:
         reply = (
-            "### The Radar Bright Band\n\n"
-            "The **Bright Band** is a prominent horizontal layer of strong radar reflectivity observed in vertical cross-sections "
-            "of stratiform precipitation systems. It occurs just below the freezing level (the $0^\\circ\\text{C}$ isotherm).\n\n"
-            "**What causes the Bright Band?**\n"
-            "1. **Melting Snowflakes:** Above the freezing level, precipitation is dry snow. Ice has a low dielectric constant ($|K|^2 \\approx 0.176$), "
-            "so it scatters poorly.\n"
-            "2. **Water Coating:** As snow falls below the freezing level, it begins to melt from the outside. The snowflake gets coated in liquid water. "
-            "Since liquid water has a high dielectric constant ($|K|^2 \\approx 0.93$), the radar sees a giant water droplet that is as large as a snowflake. "
-            "Because scattering scales as $D^6$ (diameter to the sixth power), this combination of water coating and large size creates a **reflectivity spike** (often 6-10 dB higher).\n"
-            "3. **Collapse and Fall:** As melting completes, the snowflake collapses into a compact, fast-falling raindrop. Because raindrops fall much faster than snowflakes ($v \\approx 6$-$9\\text{ m/s}$ vs. $v \\approx 1$-$2\\text{ m/s}$), "
-            "the concentration of particles per unit volume decreases (dilution effect), and the reflectivity drops back down, creating the lower boundary of the bright band."
+            "### The Mystery of the Melting Layer\n\n"
+            "Let's imagine you are looking at a dry snowflake falling through the air. Now, imagine it starts to melt. It becomes covered in a wet water film, but it hasn't collapsed into a tiny drop yet.\n\n"
+            "Water reflects radar signals much better than dry ice. If you have a large particle that is coated in liquid water, what do you think it looks like to the radar?\n\n"
+            "Does it look like a small raindrop, or does it look like a giant water mirror?\n\n"
+            "Tell me your thoughts on how this affects the radar reflection intensity at that altitude!"
         )
     elif "attenuation" in q or "loss" in q or "absorption" in q:
         reply = (
-            "### Electromagnetic Attenuation in Radar\n\n"
-            "**Attenuation** is the loss of signal power as the radar pulse travels through precipitation. It is caused by two main physical processes:\n"
-            "1. **Absorption:** Rain droplets absorb the radar's microwave energy and convert it to heat.\n"
-            "2. **Scattering:** Droplets scatter the energy away from the radar receiver's path.\n\n"
-            "**Key Principles:**\n"
-            "- **Frequency Dependence:** Higher frequency radars suffer much worse attenuation. The Ka-band (35.5 GHz, $\\lambda \\approx 8.5$ mm) "
-            "attenuates significantly faster than the Ku-band (13.6 GHz, $\\lambda \\approx 22$ mm) because its wavelength is closer to the size of the raindrops.\n"
-            "- **Path Integrated Attenuation (PIA):** The total two-way attenuation accumulated from the top of the storm down to a specific gate or the surface:\n"
-            "$$\\text{PIA} = 2 \\int_{0}^{r} k(s) ds$$\n"
-            "where $k$ is the specific attenuation coefficient in dB/km. The retrieved rainfall rate must be corrected for this loss, otherwise the rain rate at lower altitudes will be heavily underestimated."
+            "### Attenuation: The Fog Analogy\n\n"
+            "Have you ever driven in heavy fog with your high beams on? The light gets dimmer as it goes forward because the fog absorbs and scatters the light. That's attenuation.\n\n"
+            "Radar beams do the same thing in rain columns. If the beam loses strength as it travels down, what will happen to the measured reflectivity values at the bottom of the storm?\n\n"
+            "Will they look smaller or larger than they actually are? And how can we restore the lost energy?"
         )
     elif "srt" in q or "surface reference" in q or "pia" in q:
         reply = (
-            "### Surface Reference Technique (SRT)\n\n"
-            "The **Surface Reference Technique (SRT)** is a method used to estimate the total Path Integrated Attenuation (PIA) "
-            "suffered by a radar beam as it passes through the entire atmospheric column.\n\n"
-            "**How it works:**\n"
-            "1. **Reference Echo:** Under clear-air conditions, the ocean or land surface has a relatively stable and known radar backscattering cross-section (denoted as $\\sigma_0$ or Sigma-0).\n"
-            "2. **Attenuated Echo:** When rain is present, the radar pulse has to pass through the rain column twice (once on the way down, once on the way back). The measured surface backscatter drops:\n"
-            "$$\\sigma_{0\\text{, measured}} = \\sigma_{0\\text{, clear}} - \\text{PIA}_{\\text{SRT}}$$\n"
-            "3. **Solve for PIA:** By subtracting the measured surface echo from the nearby clear-air reference surface echo, we compute:\n"
-            "$$\\text{PIA}_{\\text{SRT}} = \\sigma_{0\\text{, clear}} - \\sigma_{0\\text{, measured}}$$\n"
-            "This provides an independent boundary constraint for the Level-2 solver, preventing the mathematical correction formulas (like Hitschfeld-Bordan) from diverging or blowing up in heavy rain."
+            "### The Ocean Mirror Clue\n\n"
+            "If you are looking at a mirror in a clean room, you see a sharp, bright reflection. If someone fills the room with thick smoke, the reflection in the mirror looks dim.\n\n"
+            "If you know exactly how bright the mirror *should* be, and you measure how much dimmer it looks through the smoke, what can you calculate about the smoke?\n\n"
+            "How does GPM use the ocean surface as this 'mirror' to estimate rain attenuation?"
         )
-    elif "rain type" in q or "classification" in q or "csf" in q:
+    elif "rain type" in q or "classification" in q or "csf" in q or "convective" in q or "stratiform" in q:
         reply = (
-            "### CSF: Classification Module\n\n"
-            "The GPM-DPR Level-2 algorithm classifies precipitation into three primary types:\n"
-            "1. **Stratiform Precipitation:** Characterized by uniform horizontal layers, widespread coverage, and the presence of a distinct **bright band** (melting layer) near the freezing level.\n"
-            "2. **Convective Precipitation:** Characterized by strong vertical cores, high updrafts, and high reflectivity without a bright band (due to vertical mixing and rapid freezing of ice crystals).\n"
-            "3. **Other:** Includes light rain, shallow rain, and mixed/transition states.\n\n"
-            "**Why classify?**\n"
-            "Different rain types have completely different **Drop Size Distributions (DSD)**. For example, convective cells contain higher concentrations of very large drops, "
-            "whereas stratiform regions have smaller drops but wider coverage. Knowing the type allows the algorithm to select the correct Z-R relations and scattering models."
+            "### Convective vs. Stratiform Detective\n\n"
+            "Imagine two types of storms: one is a quiet, steady rain that falls in even sheets; the other is a violent boiling pot of water with strong upward winds mixing ice and water.\n\n"
+            "Which of these two storms do you think will form a clean, horizontal melting line (Bright Band) as ice turns to rain?\n\n"
+            "And what will happen in the violent updraft storm?"
         )
-    elif "how is rain rate retrieved" in q or "retrieve" in q or "slv" in q or "pipeline" in q:
+    elif "pipeline" in q or "retrieve" in q or "slv" in q or "order" in q:
         reply = (
-            "### The GPM Level-2 Retrieval Pipeline\n\n"
-            "The DPR Level-2 algorithm converts measured radar echoes ($Z_m$) into physical precipitation rates ($R$) through a sequence of modules:\n\n"
-            "1. **PRE (Preparation):** Removes background instrument noise and ground clutter, and detects whether rain exists in the column.\n"
-            "2. **VER (Vertical profile):** Finds the storm top height, freezing level ($0^\\circ\\text{C}$ isotherm), and bright band height.\n"
-            "3. **CSF (Classification):** Classifies the column as Stratiform, Convective, or Other based on horizontal and vertical structures.\n"
-            "4. **SRT (Surface Reference):** Estimates path attenuation (PIA) by comparing the land/ocean surface echo inside the rain to clear-air reference values.\n"
-            "5. **DSD (Drop Size Distribution):** Calculates the drop sizes ($D_m, N_w$) at each gate using the dual-frequency differences (DFR).\n"
-            "6. **SLV (Solver):** Corrects reflectivity for attenuation ($Z_e$) and integrates the physical parameters to compute the final rain rate profile ($R$ in mm/h)."
+            "### The Retrieval Chain\n\n"
+            "Retrieving rain rate from space is a puzzle where you must first clean the noise (PRE), find the melting point (VER), classify the storm type (CSF), estimate the total signal loss (SRT), calculate the drop sizes (DSD), and finally solve for the rain rate (SLV).\n\n"
+            "Why do you think we must classify the storm (CSF) *before* we calculate the drop sizes (DSD) and rain rate? How do you think the storm type changes the sizes of the raindrops?"
         )
     else:
         reply = (
-            "Hello! I am your GPM-DPR AI Tutor.\n\n"
-            "I can explain concepts regarding satellite precipitation radar retrievals. Try asking me about:\n"
-            "- **Bright Band** (causes, vertical profile)\n"
-            "- **Ku vs. Ka Bands** (frequencies, sensitivities, attenuation differences)\n"
-            "- **DFR** (Dual-Frequency Ratio and how it determines drop size)\n"
-            "- **SRT** (Surface Reference Technique and PIA)\n"
-            "- **Classification (CSF)** (Stratiform vs. Convective rain)\n"
-            "- **Level-2 Retrieval Pipeline** (PRE, VER, CSF, SRT, DSD, SLV)"
+            "Hello! I am your GPM Socratic Guide.\n\n"
+            "I won't give you the answers directly—instead, I'm here to help you discover them yourself. What concept are you exploring right now?\n\n"
+            "- **Bright Band / Melting Layer** (Why does it spike?)\n"
+            "- **Ku vs. Ka / DFR** (Why do different frequencies respond differently?)\n"
+            "- **Attenuation / Signal Loss** (What absorbs the radar pulse?)\n"
+            "- **SRT / Ocean Mirror** (How does the sea surface help us?)\n"
+            "- **CSF / Classification** (Stratiform vs. Convective rain)\n"
+            "- **Retrieval Pipeline** (Why does order matter?)"
         )
         
     return {"reply": reply}
