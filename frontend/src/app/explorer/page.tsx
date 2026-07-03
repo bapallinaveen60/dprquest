@@ -29,7 +29,60 @@ export default function ExplorerPage() {
   const [srtRainState, setSrtRainState] = useState<"clear" | "rainy">("clear");
 
   // --- SLV State ---
-  const [slvStep, setSlvStep] = useState<"measured" | "corrected" | "rainrate">("measured");
+  const [slvRainType, setSlvRainType] = useState<"light" | "heavy">("light");
+  const [slvAlpha, setSlvAlpha] = useState(0.00025); // attenuation coeff
+  const [slvGateIndex, setSlvGateIndex] = useState(0);
+
+  const slvZmProfiles = {
+    light: [20, 22, 23, 24, 24, 23, 22, 20],
+    heavy: [35, 38, 39, 38, 36, 33, 29, 23]
+  };
+
+  const calcK = (ze: number, alpha: number) => alpha * Math.pow(10, ze * 0.08);
+
+  const initialHistory = (rainType: "light" | "heavy", alpha: number) => {
+    const profile = slvZmProfiles[rainType];
+    const firstZm = profile[0];
+    const firstK = calcK(firstZm, alpha);
+    return [{
+      gate: 0,
+      height: 4.0,
+      zm: firstZm,
+      pia: 0,
+      ze: firstZm,
+      k: firstK
+    }];
+  };
+
+  const [slvHistory, setSlvHistory] = useState(() => initialHistory("light", 0.00025));
+
+  const resetSlv = (rainType: "light" | "heavy", alpha: number) => {
+    setSlvGateIndex(0);
+    setSlvHistory(initialHistory(rainType, alpha));
+  };
+
+  const stepNextGate = () => {
+    if (slvGateIndex >= 7) return; // already at bottom gate
+    const current = slvHistory[slvGateIndex];
+    const deltaR = 0.25;
+    const nextPia = current.pia + 2.0 * current.k * deltaR;
+    const profile = slvZmProfiles[slvRainType];
+    const nextZm = profile[slvGateIndex + 1];
+    const nextZe = nextZm + nextPia;
+    const nextK = calcK(nextZe, slvAlpha);
+
+    const nextEntry = {
+      gate: slvGateIndex + 1,
+      height: 4.0 - (slvGateIndex + 1) * deltaR,
+      zm: nextZm,
+      pia: nextPia,
+      ze: nextZe,
+      k: nextK
+    };
+
+    setSlvHistory([...slvHistory, nextEntry]);
+    setSlvGateIndex(slvGateIndex + 1);
+  };
 
   const modules = [
     { id: "PRE", title: "PRE Module", desc: "Preparation & Noise Removal" },
@@ -484,88 +537,200 @@ export default function ExplorerPage() {
               </div>
             )}
 
-            {/* --- SLV WORKSPACE --- */}
+            {/* --- SLV WORKSPACE (Interactive Gate Solver) --- */}
             {activeModule === "SLV" && (
               <div className="flex flex-col gap-6">
-                <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-                  <h3 className="font-bold text-white text-sm">SLV: Attenuation Correction & Rain Retrieval</h3>
-                  <div className="flex bg-slate-900 p-1 rounded-lg border border-gray-800 text-xs">
-                    {[
-                      { id: "measured", label: "1. Measured Z" },
-                      { id: "corrected", label: "2. Corrected Z" },
-                      { id: "rainrate", label: "3. Retrieved Rain" }
-                    ].map(step => (
-                      <button
-                        key={step.id}
-                        onClick={() => setSlvStep(step.id as any)}
-                        className={`px-3 py-1 rounded font-semibold transition-all ${
-                          slvStep === step.id ? "bg-slate-800 text-white" : "text-gray-500"
-                        }`}
-                      >
-                        {step.label}
-                      </button>
-                    ))}
+                <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-800 pb-3 gap-3">
+                  <h3 className="font-bold text-white text-sm">SLV: Step-by-Step Gate Solver</h3>
+                  
+                  {/* Select rain type profile */}
+                  <div className="flex bg-slate-900 p-1 rounded border border-gray-800 text-[10px]">
+                    <button
+                      onClick={() => {
+                        setSlvRainType("light");
+                        resetSlv("light", slvAlpha);
+                      }}
+                      className={`px-2 py-1 rounded font-semibold transition-all ${
+                        slvRainType === "light" ? "bg-slate-800 text-white" : "text-gray-500"
+                      }`}
+                    >
+                      Light Rain Profile
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSlvRainType("heavy");
+                        resetSlv("heavy", slvAlpha);
+                      }}
+                      className={`px-2 py-1 rounded font-semibold transition-all ${
+                        slvRainType === "heavy" ? "bg-slate-800 text-white" : "text-gray-500"
+                      }`}
+                    >
+                      Heavy Rain Profile
+                    </button>
                   </div>
                 </div>
 
-                {/* Profile chart layout */}
-                <div className="h-80 border border-gray-800 bg-slate-950/40 rounded-lg relative overflow-hidden p-6 flex flex-col justify-between">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[9px] text-gray-500 uppercase tracking-widest font-mono">Current Solver Step</span>
-                    <span className="text-xs font-bold text-white uppercase">
-                      {slvStep === "measured" ? "Measured Reflectivity (Attenuated Zm)" :
-                       slvStep === "corrected" ? "Corrected Reflectivity (Ze)" :
-                       "Retrieved Rain Rate (R)"}
-                    </span>
+                {/* Alpha coefficient slider */}
+                <div className="flex flex-col gap-1.5 p-3 rounded-lg bg-slate-900 border border-gray-800">
+                  <label className="text-[10px] font-mono font-bold text-gray-400 flex justify-between">
+                    <span>Attenuation scaling factor (Alpha / α):</span>
+                    <span className="text-orange-400">{slvAlpha.toFixed(5)}</span>
+                  </label>
+                  <input
+                    type="range" min="0.0001" max="0.0008" step="0.00005" value={slvAlpha}
+                    onChange={(e) => {
+                      const newAlpha = Number(e.target.value);
+                      setSlvAlpha(newAlpha);
+                      resetSlv(slvRainType, newAlpha);
+                    }}
+                    className="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-orange-405"
+                  />
+                  <div className="flex justify-between text-[8px] text-gray-500 font-mono">
+                    <span>Low Attenuation</span>
+                    <span>High Attenuation (Risk of Divergence)</span>
                   </div>
+                </div>
 
-                  {/* Plot profiles */}
-                  <div className="flex-1 border-l border-b border-gray-800 relative mt-4 mb-2">
-                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      {slvStep === "measured" && (
-                        <>
-                          {/* Ku Measured (attenuated slightly) */}
-                          <path d="M 10 0 L 25 30 L 27 50 L 32 70 L 22 100" fill="none" stroke="#3b82f6" strokeWidth="2.5" />
-                          {/* Ka Measured (attenuated heavily) */}
-                          <path d="M 10 0 L 24 30 L 20 50 L 12 70 L 2 100" fill="none" stroke="#f97316" strokeWidth="2.5" />
-                        </>
-                      )}
-                      {slvStep === "corrected" && (
-                        <>
-                          {/* Ku Corrected */}
-                          <path d="M 10 0 L 25 30 L 32 50 L 38 70 L 38 100" fill="none" stroke="#2563eb" strokeWidth="2.5" />
-                          {/* Ka Corrected */}
-                          <path d="M 10 0 L 25 30 L 28 50 L 28 70 L 25 100" fill="none" stroke="#ea580c" strokeWidth="2.5" />
-                        </>
-                      )}
-                      {slvStep === "rainrate" && (
-                        <>
-                          {/* Retrieved Rain Rate */}
-                          <path d="M 0 0 L 2 30 L 6 50 L 18 70 L 35 100" fill="none" stroke="#1d4ed8" strokeWidth="2.5" />
-                        </>
-                      )}
-                    </svg>
+                {/* Interactive Grid Columns */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                  
+                  {/* Left Column: Vertical Gates Stack (7 cols) */}
+                  <div className="md:col-span-7 flex flex-col gap-2">
+                    <span className="text-[9px] text-gray-500 uppercase font-mono tracking-widest pl-1">Storm Profile Gates (Storm Top to Surface)</span>
                     
-                    <div className="w-full flex justify-between absolute bottom-1 right-1 text-[8px] text-gray-600 font-mono">
-                      {slvStep !== "rainrate" ? (
-                        <>
-                          <span>0 dBZ</span>
-                          <span>50 dBZ</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>0 mm/h</span>
-                          <span>40 mm/h</span>
-                        </>
-                      )}
+                    <div className="flex flex-col gap-1 bg-slate-950/60 p-2 rounded-lg border border-gray-900">
+                      {slvZmProfiles[slvRainType].map((zmVal, idx) => {
+                        const isSolved = idx <= slvGateIndex;
+                        const isActive = idx === slvGateIndex;
+                        const historyEntry = slvHistory.find(h => h.gate === idx);
+                        
+                        return (
+                          <div 
+                            key={idx}
+                            className={`flex items-center justify-between p-2 rounded border text-xs transition-all ${
+                              isActive 
+                                ? "bg-slate-800 border-yellow-500/80 shadow-inner" 
+                                : isSolved 
+                                  ? "bg-slate-900/60 border-blue-900/40 text-blue-300"
+                                  : "bg-slate-950/40 border-gray-900 text-gray-600 opacity-40"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                                isActive ? "bg-yellow-500 text-slate-950" : isSolved ? "bg-blue-900/40 text-blue-300" : "bg-gray-900 text-gray-700"
+                              }`}>
+                                {idx + 1}
+                              </span>
+                              <div className="flex flex-col">
+                                <span className="font-semibold">Gate {idx + 1}</span>
+                                <span className="text-[8px] text-gray-500 font-mono">Alt: {(4.0 - idx * 0.25).toFixed(2)} km</span>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-4 font-mono text-[9px] text-right">
+                              <div className="flex flex-col">
+                                <span className="text-[7px] text-gray-500">MEASURED Zm</span>
+                                <span className="font-bold text-white">{zmVal} dBZ</span>
+                              </div>
+                              {historyEntry && (
+                                <>
+                                  <div className="flex flex-col">
+                                    <span className="text-[7px] text-gray-500">CORRECTED Ze</span>
+                                    <span className="font-bold text-orange-400">{historyEntry.ze.toFixed(1)} dBZ</span>
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[7px] text-gray-500">ATTEN (k)</span>
+                                    <span className="font-bold text-blue-400">{historyEntry.k.toFixed(3)} dB/km</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  <p className="text-[10px] text-gray-500 leading-normal italic font-mono">
-                    {slvStep === "measured" ? "Measured Profile: Energy lost along path makes reflectivity look smaller at the bottom gates, particularly for the Ka-band." :
-                     slvStep === "corrected" ? "Corrected Profile: The solver uses the DFR (Ku-Ka difference) to step-by-step restore the lost energy along the beam path." :
-                     "Retrieved Rain Rate: The physical parameters are resolved, converting Z-R relations into rainfall rates (mm/h) along the vertical column."}
-                  </p>
+                  {/* Right Column: Step Controls & Math Display (5 cols) */}
+                  <div className="md:col-span-5 flex flex-col gap-4">
+                    
+                    {/* Stepping controls */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={stepNextGate}
+                        disabled={slvGateIndex >= 7}
+                        className="flex-1 py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs disabled:opacity-30 disabled:pointer-events-none transition-all shadow-md"
+                      >
+                        Step Next Gate
+                      </button>
+                      <button
+                        onClick={() => resetSlv(slvRainType, slvAlpha)}
+                        className="py-2.5 px-3 rounded-lg bg-slate-900 border border-gray-800 text-xs font-bold text-gray-400 hover:text-white"
+                      >
+                        Reset
+                      </button>
+                    </div>
+
+                    {/* Math Dashboard */}
+                    {(() => {
+                      const active = slvHistory[slvGateIndex];
+                      if (!active) return null;
+                      
+                      const isDiverging = active.ze > 52.0 && slvRainType === "heavy";
+
+                      return (
+                        <div className="glass-panel p-4 rounded-xl border border-gray-850 bg-slate-950/40 flex flex-col gap-3">
+                          <span className="text-[9px] text-gray-500 font-mono uppercase tracking-wider border-b border-gray-850 pb-1.5">Active Gate Calculations</span>
+                          
+                          <div className="flex flex-col gap-2 text-[10px] font-mono text-gray-300">
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Measured Zm:</span>
+                              <span className="text-white font-bold">{active.zm.toFixed(1)} dBZ</span>
+                            </div>
+                            
+                            <div className="flex justify-between border-t border-gray-900 pt-1.5">
+                              <span className="text-gray-500">Accumulated PIA:</span>
+                              <span className="text-blue-400 font-bold">+{active.pia.toFixed(2)} dB</span>
+                            </div>
+
+                            <div className="flex justify-between border-t border-gray-900 pt-1.5">
+                              <span className="text-gray-500">Corrected Ze (Zm + PIA):</span>
+                              <span className="text-orange-400 font-extrabold">{active.ze.toFixed(1)} dBZ</span>
+                            </div>
+
+                            <div className="flex justify-between border-t border-gray-900 pt-1.5">
+                              <span className="text-gray-500">Attenuation Rate (k):</span>
+                              <span className="text-blue-400 font-bold">{active.k.toFixed(4)} dB/km</span>
+                            </div>
+                          </div>
+
+                          {/* Divergence warning or column success */}
+                          {slvGateIndex === 7 ? (
+                            isDiverging ? (
+                              <div className="p-2.5 rounded bg-red-950/20 border border-red-800/30 text-red-400 text-[9px] leading-normal font-mono flex gap-1.5 mt-2 animate-pulse">
+                                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                <span>
+                                  <strong>⚠️ SOLVER DIVERGENCE!</strong> Correcting heavy attenuation without a boundary constraint created a runaway positive feedback loop. Corrected reflectivity has blown up!
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="p-2.5 rounded bg-emerald-950/20 border border-emerald-800/30 text-emerald-400 text-[9px] leading-normal font-mono flex gap-1.5 mt-2">
+                                <Award className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                <span>
+                                  <strong>✅ COLUMN SOLVED CLEANLY.</strong> Attenuation correction converged safely. Retrieved rain profile is stable!
+                                </span>
+                              </div>
+                            )
+                          ) : null}
+                        </div>
+                      );
+                    })()}
+
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-gray-500 leading-normal italic font-mono p-3 bg-slate-900 border border-gray-850 rounded-lg">
+                  Algorithm Rule: The Hitschfeld-Bordan profile solver integrates downward gate-by-gate. Ze(i) at each step is calculated from the measured reflectivity Zm(i) plus the cumulative path attenuation (PIA) solved from the gates above.
                 </div>
               </div>
             )}
