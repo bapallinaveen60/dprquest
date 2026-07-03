@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, BookOpen, Layers, Binary, Info, HelpCircle } from "lucide-react";
+import { Search, BookOpen, Info } from "lucide-react";
 
 interface DictionaryVar {
   name: string;
@@ -26,67 +26,247 @@ export default function DictionaryPage() {
       desc: "Raw radar reflectivity factor measured by the spacecraft, uncorrected for attenuation.",
       equation: "Z_m = Z_e \\cdot A_p",
       example: "12.0 to 55.0 dBZ",
-      longDesc: "This is the initial power return from clouds backscattered to the KuPR and KaPR receivers. It represents the primary raw observation. Because the microwave pulse loses energy as it penetrates rain, zFactorMeasured is always smaller than or equal to the true reflectivity (zFactorCorrected)."
+      longDesc: "This is the initial power return from cloud backscatter received by KuPR and KaPR. Because the microwave pulse loses energy as it penetrates rain, zFactorMeasured is always smaller than or equal to the true reflectivity."
     },
     {
-      name: "zFactorFinal (zFactorCorrected)",
+      name: "zFactorCorrected",
       module: "SLV",
       units: "dBZ",
       shape: "(nScan, nBeam, nBin)",
       desc: "True radar reflectivity factor after correcting for path attenuation and Mie scattering.",
-      equation: "Z_e = Z_m / \\text{AttenuationFactor}",
+      equation: "Z_e = Z_m + PIA",
       example: "12.0 to 65.0 dBZ",
-      longDesc: "The final corrected reflectivity factor representing the true physical backscattering profile of the cloud droplets. It compensates for specific attenuation (absorption + scattering) along the propagation path. This corrected profile is the direct input to the rain rate estimation algorithm."
+      longDesc: "The final corrected reflectivity factor representing the true physical backscattering profile of the cloud droplets. It compensates for specific attenuation (absorption + scattering) along the propagation path."
+    },
+    {
+      name: "precipRate",
+      module: "SLV",
+      units: "mm/h",
+      shape: "(nScan, nBeam, nBin)",
+      desc: "Retrieved physical precipitation rate profile at each range gate.",
+      equation: "R = a \\cdot Z_e^b",
+      example: "0.0 to 150.0 mm/h",
+      longDesc: "Calculated at each range gate using local DSD intercept parameters and corrected reflectivity. It gives a 3D volume profile of rainfall intensity."
     },
     {
       name: "precipRateNearSurface",
-      module: "SLV / Level-2 Products",
+      module: "SLV",
       units: "mm/h",
       shape: "(nScan, nBeam)",
       desc: "Estimated precipitation rate at the lowest clutter-free gate near the Earth's surface.",
-      equation: "R = a \\cdot Z_e^b",
+      equation: "R_{near} = a \\cdot Z_{e,cfb}^b",
       example: "0.0 to 120.0 mm/h",
-      longDesc: "This is the most widely used Level-2 scientific product. It estimates the instantaneous rainfall rate reaching the ground. The solver selects appropriate Z-R coefficients (a and b) based on whether the CSF module classified the rainfall as stratiform or convective."
+      longDesc: "Estimates the instantaneous rainfall rate reaching the ground. The solver selects appropriate Z-R coefficients based on whether the CSF module classified the rainfall as stratiform or convective."
     },
     {
-      name: "rainType (typePrecip)",
+      name: "precipType",
       module: "CSF",
-      units: "Dimensionless (Category Flag)",
+      units: "Dimensionless Flag",
       shape: "(nScan, nBeam)",
       desc: "Classification of precipitation column type (Convective, Stratiform, or Other).",
-      equation: "\\text{Flag} \\in \\{0, 1, 2, 3\\}",
-      example: "1 (Stratiform), 2 (Convective), 3 (Other)",
-      longDesc: "An integer flag representing the classification of the precipitation vertical structure. It is determined by the CSF module using horizontal texture analysis and checking for the presence of a bright band melting peak."
+      equation: "Type \\in \\{1: Stratiform, 2: Convective, 3: Other\\}",
+      example: "1 (Stratiform), 2 (Convective)",
+      longDesc: "Determined by horizontal texture variation (H-method) and vertical bright band peaks (V-method) to select proper Z-R relationships."
     },
     {
-      name: "Dm (meanDropletDiameter)",
+      name: "binClutterFreeBottom",
+      module: "PRE",
+      units: "Gate Index (1-176)",
+      shape: "(nScan, nBeam)",
+      desc: "Range gate number representing the lowest altitude bin unaffected by ground clutter returns.",
+      equation: "Bin_{cfb} = f(ScanAngle, Elevation)",
+      example: "150 (out of 176 gates)",
+      longDesc: "Isolates the region contaminated by radar beam mainlobe and sidelobe reflections striking the solid ocean or land surface."
+    },
+    {
+      name: "binStormTop",
+      module: "VER",
+      units: "Gate Index (1-176)",
+      shape: "(nScan, nBeam)",
+      desc: "The highest gate number in the vertical column containing detected precipitation signals above the noise floor.",
+      equation: "Bin_{top} = \\min \\{i \\mid Z_m(i) > NoiseThreshold\\}",
+      example: "45",
+      longDesc: "Identified in the VER module as the topmost boundary of the cloud. A lower gate index signifies a taller storm (convective cloud tops reaching 14-16km)."
+    },
+    {
+      name: "heightBB",
+      module: "VER",
+      units: "km",
+      shape: "(nScan, nBeam)",
+      desc: "Estimated altitude of the center of the radar bright band (melting layer).",
+      equation: "H_{BB} = Altitude(Bin_{BB})",
+      example: "3.8 km",
+      longDesc: "Determined from the localized peak in the vertical reflectivity profile gradient where snow ice crystals melt into liquid rain drops."
+    },
+    {
+      name: "widthBB",
+      module: "VER",
+      units: "m",
+      shape: "(nScan, nBeam)",
+      desc: "The vertical thickness of the melting bright band layer.",
+      equation: "Width = (Bin_{bottom} - Bin_{top}) \\cdot 125m",
+      example: "350 m",
+      longDesc: "Represents the depth of the melting transition layer, determined from the vertical curvature of the radar signal surrounding the bright band peak."
+    },
+    {
+      name: "meanDomeDiameter",
       module: "DSD",
       units: "mm",
       shape: "(nScan, nBeam, nBin)",
-      desc: "Mass-weighted mean diameter of the raindrop size distribution.",
-      equation: "D_m = \\frac{\\int D^4 N(D) dD}{\\int D^3 N(D) dD}",
-      example: "0.5 to 3.5 mm",
-      longDesc: "A critical parameter of the Drop Size Distribution (DSD). It specifies the average physical diameter of the raindrops in a unit volume. Larger Dm values mean the storm is composed of fewer, larger drops, while smaller Dm means a mist of tiny droplets."
+      desc: "Mass-weighted mean droplet diameter (Dm) of the raindrop size distribution.",
+      equation: "D_m = \\int D^4 N(D) dD / \\int D^3 N(D) dD",
+      example: "0.8 to 3.2 mm",
+      longDesc: "Calculated using the DFR (Dual Frequency Ratio) gap between Ku-band and Ka-band to separate rainfall rate from drop size variance."
     },
     {
-      name: "PIA (pathIntegratedAttenuation)",
+      name: "paramNw",
+      module: "DSD",
+      units: "m^-3 mm^-1",
+      shape: "(nScan, nBeam, nBin)",
+      desc: "Normalized intercept parameter (Nw) of the droplet size distribution.",
+      equation: "N_w = (4^4 / \\pi) \\cdot LWC / D_m^4",
+      example: "1000 to 24000",
+      longDesc: "Indicates the count density of droplets per unit volume once normalized by the average size diameter."
+    },
+    {
+      name: "pathAttenEstimation",
       module: "SRT",
       units: "dB",
       shape: "(nScan, nBeam)",
-      desc: "Total two-way signal loss suffered by the radar pulse traveling through the entire atmospheric column.",
-      equation: "\\text{PIA} = 2 \\int_0^H k(s) ds",
-      example: "0.0 to 45.0 dB",
-      longDesc: "Calculated primarily by the Surface Reference Technique (SRT) by comparing the land/ocean surface echo reduction relative to nearby rain-free reference sweeps. PIA provides a crucial boundary condition constraint for correcting reflectivity profiles."
+      desc: "Total column Path Integrated Attenuation (PIA) estimated by the Surface Reference Technique.",
+      equation: "PIA_{SRT} = \\sigma_{0,ref} - \\sigma_{0,meas}",
+      example: "0.5 to 38.0 dB",
+      longDesc: "Computed by comparing the backscatter reduction of the ocean/land surface in the rain column to adjacent clear-air reference targets."
     },
     {
-      name: "stormTopHeight",
-      module: "VER",
-      units: "m or km",
+      name: "srtReliabilityFlag",
+      module: "SRT",
+      units: "Dimensionless Flag",
       shape: "(nScan, nBeam)",
-      desc: "Maximum altitude in the vertical column where precipitation echoes are first detected above the noise floor.",
-      equation: "H_{\\text{top}} = \\text{GateIndex} \\cdot \\text{GateSpacing}",
-      example: "1.5 to 16.0 km",
-      longDesc: "Detected by the VER module as the highest gate where the measured reflectivity exceeds the minimum detectable threshold (~12 dBZ for Ku-band). High storm top heights (>12km) are indicators of strong convective updrafts and severe storms."
+      desc: "Reliability score of the SRT path integrated attenuation estimate.",
+      equation: "Reliability \\in \\{1: Reliable, 2: Marginal, 3: Unusable\\}",
+      example: "1",
+      longDesc: "Flags whether the underlying ground/sea surface reflection was stable enough to provide a high-confidence reference mirror."
+    },
+    {
+      name: "triggerFlag",
+      module: "TRG",
+      units: "Binary Flag",
+      shape: "(nScan, nBeam)",
+      desc: "Execution flag indicating whether the column contains valid radar signal above the noise threshold.",
+      equation: "Trigger = \\exists i \\mid Z_m(i) > MinThreshold",
+      example: "1 (Process), 0 (Skip)",
+      longDesc: "Used by the main software thread to bypass empty clear-sky coordinates, maximizing computation efficiency across raw swaths."
+    },
+    {
+      name: "binLowestTrigger",
+      module: "TRG",
+      units: "Gate Index (1-176)",
+      shape: "(nScan, nBeam)",
+      desc: "The lowest altitude gate that met the trigger threshold to run the Level-2 pipeline.",
+      equation: "Bin_{trg} = \\max \\{i \\mid Z_m(i) > MinThreshold\\}",
+      example: "142",
+      longDesc: "Determines the search start altitude for noise check threads, optimizing computational loop lengths."
+    },
+    {
+      name: "localNoiseLevel",
+      module: "PRE",
+      units: "dBm",
+      shape: "(nScan, nBeam)",
+      desc: "Estimated instrument receiver thermal noise floor.",
+      equation: "Noise = Average(P_{empty})",
+      example: "-112.5 dBm",
+      longDesc: "Computed from raw signal power at high altitudes (e.g. >18km) where clouds and atmospheric echoes are absent."
+    },
+    {
+      name: "binZeroDegIsotherm",
+      module: "VER",
+      units: "Gate Index (1-176)",
+      shape: "(nScan, nBeam)",
+      desc: "Estimated gate index representing the freezing level altitude (0°C isotherm).",
+      equation: "Bin_{0C} = f(ModelTemp, Climatology)",
+      example: "80",
+      longDesc: "Identified using temperature profiles from ancillary meteorological models to constrain search boundaries for the bright band detection loop."
+    },
+    {
+      name: "precipWaterCont",
+      module: "DSD",
+      units: "g/m³",
+      shape: "(nScan, nBeam, nBin)",
+      desc: "Liquid water content (LWC) representing the mass density of liquid water per unit volume.",
+      equation: "LWC = (\\pi / 6) \\cdot \\rho_w \\int D^3 N(D) dD",
+      example: "0.05 to 4.5 g/m³",
+      longDesc: "Extracted in the DSD module. It represents the physical mass concentration of atmospheric water droplets inside each grid cell volume."
+    },
+    {
+      name: "attenuationCoeff",
+      module: "SLV",
+      units: "dB/km",
+      shape: "(nScan, nBeam, nBin)",
+      desc: "Specific attenuation coefficient (k) representing signal decay per kilometer of travel.",
+      equation: "k = \\alpha \\cdot Z_e^\\beta",
+      example: "0.001 to 6.5 dB/km",
+      longDesc: "Calculated gate-by-gate in the solver. It maps microwave power absorption rates which are integrated to correct measured reflectivity."
+    },
+    {
+      name: "epsilon",
+      module: "SLV",
+      units: "Dimensionless Ratio",
+      shape: "(nScan, nBeam)",
+      desc: "Adjustment parameter used to scale specific attenuation to match SRT boundary targets.",
+      equation: "\\epsilon = PIA_{solved} / PIA_{SRT}",
+      example: "0.85 to 1.15",
+      longDesc: "If the integrated Hitschfeld-Bordan path attenuation does not match the surface reference measurement, epsilon scales the specific attenuation coefficient profile."
+    },
+    {
+      name: "sigmaZeroMeasured",
+      module: "SRT",
+      units: "dB",
+      shape: "(nScan, nBeam)",
+      desc: "Measured backscattering cross-section of the Earth's surface inside the rain column.",
+      equation: "\\sigma_{0,meas} = MeasuredPower / CalibrationFactor",
+      example: "-18.5 dB",
+      longDesc: "The surface echo returned to the spacecraft. It is attenuated twice as the pulse passes down and back up through the storm."
+    },
+    {
+      name: "sigmaZeroReference",
+      module: "SRT",
+      units: "dB",
+      shape: "(nScan, nBeam)",
+      desc: "Reference backscattering cross-section of the Earth's surface under clear-air conditions.",
+      equation: "\\sigma_{0,ref} = Mean(\\sigma_{0,clear})",
+      example: "-10.0 dB",
+      longDesc: "Calculated from clean, non-raining pixels nearby to represent what the surface mirror return should be in the absence of precipitation."
+    },
+    {
+      name: "binMeltingLevel",
+      module: "VER",
+      units: "Gate Index (1-176)",
+      shape: "(nScan, nBeam)",
+      desc: "The top boundary gate index of the melting snow layer.",
+      equation: "Bin_{melt} = Bin_{BB} - Width/2",
+      example: "72",
+      longDesc: "Extracted in the VER module. It marks where falling snowflakes first begin melting and accumulating water films."
+    },
+    {
+      name: "freezingLevel",
+      module: "VER",
+      units: "km",
+      shape: "(nScan, nBeam)",
+      desc: "Freezing isotherm height representing the physical boundary between snow and liquid rain.",
+      equation: "Height_{freezing} = Altitude(Bin_{0C})",
+      example: "4.2 km",
+      longDesc: "Used as a threshold boundary in the classification and scattering models to switch from ice-scattering to water-scattering coefficients."
+    },
+    {
+      name: "rainFlag",
+      module: "CSF",
+      units: "Binary Indicator",
+      shape: "(nScan, nBeam)",
+      desc: "Flag indicating whether precipitation exists in the vertical column.",
+      equation: "Flag = (Z_{max} > Threshold) ? 1 : 0",
+      example: "1 (Rain), 0 (Clear)",
+      longDesc: "Extracted during classification. It filters out columns that only contain trace humidity or high non-precipitating clouds."
     }
   ];
 
@@ -111,7 +291,7 @@ export default function DictionaryPage() {
         <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-500" />
         <input
           type="text"
-          placeholder="Search by variable name or module (e.g., Dm, SLV, PIA)..."
+          placeholder="Search by variable name or module (e.g., Dm, SLV, PIA, bin)..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full bg-gray-900/60 border border-gray-800 rounded-2xl py-3 pl-12 pr-4 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 transition-all"
