@@ -1,32 +1,319 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import dynamic from "next/dynamic";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { 
-  ArrowRight, 
-  ArrowLeft, 
-  CheckCircle, 
-  XCircle,
-  HelpCircle as QuestionIcon,
-  Play,
-  RotateCcw,
-  Compass,
-  GraduationCap
+  Home as HomeIcon, 
+  Compass as CompassIcon, 
+  MessageSquare as MessageIcon, 
+  User as UserIcon,
+  ChevronLeft,
+  MoreHorizontal
 } from "lucide-react";
 
-// Dynamically import ThreeOrbitalScan to avoid SSR window errors
-const ThreeOrbitalScan = dynamic(() => import("@/components/ThreeOrbitalScan"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-80 md:h-[450px] rounded-xl bg-slate-900/60 flex items-center justify-center border border-gray-800">
-      <div className="text-blue-400 font-mono text-xs animate-pulse">LOADING 3D ORBITAL SIMULATION...</div>
+// =============================================================
+// Mobile Mockup Helper Components
+// =============================================================
+function IOSStatusBar({ dark = false }: { dark?: boolean }) {
+  const c = dark ? "#fff" : "#000";
+  return (
+    <div style={{
+      display: "flex", gap: 154, alignItems: "center", justifyContent: "center",
+      padding: "21px 24px 19px", boxSizing: "border-box",
+      position: "relative", zIndex: 20, width: "100%",
+    }}>
+      <div style={{ flex: 1, height: 22, display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 1.5 }}>
+        <span style={{
+          fontFamily: '-apple-system, "SF Pro", system-ui', fontWeight: 590,
+          fontSize: 17, lineHeight: "22px", color: c,
+        }}>9:41</span>
+      </div>
+      <div style={{ flex: 1, height: 22, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, paddingTop: 1, paddingRight: 1 }}>
+        <svg width="19" height="12" viewBox="0 0 19 12">
+          <rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7" fill={c}/>
+          <rect x="4.8" y="5" width="3.2" height="7" rx="0.7" fill={c}/>
+          <rect x="9.6" y="2.5" width="3.2" height="9.5" rx="0.7" fill={c}/>
+          <rect x="14.4" y="0" width="3.2" height="12" rx="0.7" fill={c}/>
+        </svg>
+        <svg width="17" height="12" viewBox="0 0 17 12">
+          <path d="M8.5 3.2C10.8 3.2 12.9 4.1 14.4 5.6L15.5 4.5C13.7 2.7 11.2 1.5 8.5 1.5C5.8 1.5 3.3 2.7 1.5 4.5L2.6 5.6C4.1 4.1 6.2 3.2 8.5 3.2Z" fill={c}/>
+          <path d="M8.5 6.8C9.9 6.8 11.1 7.3 12 8.2L13.1 7.1C11.8 5.9 10.2 5.1 8.5 5.1C6.8 5.1 5.2 5.9 3.9 7.1L5 8.2C5.9 7.3 7.1 6.8 8.5 6.8Z" fill={c}/>
+          <circle cx="8.5" cy="10.5" r="1.5" fill={c}/>
+        </svg>
+        <svg width="27" height="13" viewBox="0 0 27 13">
+          <rect x="0.5" y="0.5" width="23" height="12" rx="3.5" stroke={c} strokeOpacity="0.35" fill="none"/>
+          <rect x="2" y="2" width="20" height="9" rx="2" fill={c}/>
+          <path d="M25 4.5V8.5C25.8 8.2 26.5 7.2 26.5 6.5C26.5 5.8 25.8 4.8 25 4.5Z" fill={c} fillOpacity="0.4"/>
+        </svg>
+      </div>
     </div>
-  )
-});
+  );
+}
+
+function IOSGlassPill({ children, dark = false }: { children: any; dark?: boolean }) {
+  return (
+    <div style={{
+      height: 44, minWidth: 44, borderRadius: 9999,
+      position: "relative", overflow: "hidden",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      boxShadow: dark
+        ? "0 2px 6px rgba(0,0,0,0.35), 0 6px 16px rgba(0,0,0,0.2)"
+        : "0 1px 3px rgba(0,0,0,0.07), 0 3px 10px rgba(0,0,0,0.06)",
+    }}>
+      <div style={{
+        position: "absolute", inset: 0, borderRadius: 9999,
+        backdropFilter: "blur(12px) saturate(180%)",
+        WebkitBackdropFilter: "blur(12px) saturate(180%)",
+        background: dark ? "rgba(120,120,128,0.28)" : "rgba(255,255,255,0.5)",
+      }} />
+      <div style={{
+        position: "absolute", inset: 0, borderRadius: 9999,
+        boxShadow: dark
+          ? "inset 1.5px 1.5px 1px rgba(255,255,255,0.15), inset -1px -1px 1px rgba(255,255,255,0.08)"
+          : "inset 1.5px 1.5px 1px rgba(255,255,255,0.7), inset -1px -1px 1px rgba(255,255,255,0.4)",
+        border: dark ? "0.5px solid rgba(255,255,255,0.15)" : "0.5px solid rgba(0,0,0,0.06)",
+      }} />
+      <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", padding: "0 4px" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function IOSNavBar({ title = "Title", dark = false, onBack }: { title?: string; dark?: boolean; onBack: () => void }) {
+  const muted = dark ? "rgba(255,255,255,0.6)" : "#404040";
+  const text = dark ? "#fff" : "#000";
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", gap: 10,
+      paddingTop: 62, paddingBottom: 10, position: "relative", zIndex: 5,
+    }}>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "0 16px",
+      }}>
+        <button 
+          onClick={onBack} 
+          style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+        >
+          <IOSGlassPill dark={dark}>
+            <div style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ChevronLeft style={{ color: muted, width: 20, height: 20 }} />
+            </div>
+          </IOSGlassPill>
+        </button>
+        
+        <IOSGlassPill dark={dark}>
+          <div style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <MoreHorizontal style={{ color: muted, width: 22, height: 22 }} />
+          </div>
+        </IOSGlassPill>
+      </div>
+      <div style={{
+        padding: "0 16px",
+        fontFamily: '-apple-system, system-ui',
+        fontSize: 34, fontWeight: 700, lineHeight: "41px",
+        color: text, letterSpacing: 0.4,
+      }}>{title}</div>
+    </div>
+  );
+}
+
+function IOSDevice({ children, width = 402, height = 874, dark = false, onBack }: { children: any; width?: number; height?: number; dark?: boolean; onBack: () => void }) {
+  return (
+    <div style={{
+      width, height, borderRadius: 48, overflow: "hidden",
+      position: "relative", background: dark ? "#000" : "#F2F2F7",
+      boxShadow: "0 40px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.12)",
+      fontFamily: "-apple-system, system-ui, sans-serif",
+      WebkitFontSmoothing: "antialiased",
+    }}>
+      {/* dynamic island */}
+      <div style={{
+        position: "absolute", top: 11, left: "50%", transform: "translateX(-50%)",
+        width: 126, height: 37, borderRadius: 24, background: "#000", zIndex: 50,
+      }} />
+      {/* status bar */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 }}>
+        <IOSStatusBar dark={dark} />
+      </div>
+      {/* nav + content */}
+      <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+        <div style={{ flex: 1, overflow: "auto" }}>{children}</div>
+      </div>
+      {/* home indicator */}
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 60,
+        height: 34, display: "flex", justifyContent: "center", alignItems: "flex-end",
+        paddingBottom: 8, pointerEvents: "none",
+      }}>
+        <div style={{
+          width: 139, height: 5, borderRadius: 100,
+          background: dark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.25)",
+        }} />
+      </div>
+    </div>
+  );
+}
+
+// =============================================================
+// Module Definitions & Interactive Content
+// =============================================================
+const MODULE_DEFS = [
+  { id: "pre", step: 1, title: "Is There Rain At All?", kicker: "Step 1 · PRE" },
+  { id: "ver", step: 2, title: "What's the Air Doing?", kicker: "Step 2 · VER" },
+  { id: "csf", step: 3, title: "What Kind of Rain?", kicker: "Step 3 · CSF" },
+  { id: "dsd", step: 4, title: "Which Drops Made This Echo?", kicker: "Step 4 · DSD" },
+  { id: "srt", step: 5, title: "How Much Signal Was Lost?", kicker: "Step 5 · SRT" },
+  { id: "trg", step: 6, title: "Can We Trust the Retrieval?", kicker: "Step 6 · TRG" },
+  { id: "slv", step: 7, title: "So, What's the Rain Rate?", kicker: "Step 7 · SLV" },
+];
+
+const CONTENT: Record<string, {
+  intro: Record<string, string>;
+  explain: Record<string, string>;
+  threshold?: number;
+  freezeLevel?: number;
+  expected?: number;
+  observed?: number;
+}> = {
+  pre: {
+    intro: {
+      beginner: "The satellite's radar sends energy down and listens for what bounces back. Before anything else, it has to decide: is this echo rain, or just empty sky? Drag the slider to set how strong the echo is, then guess.",
+      intermediate: "PRE converts received power into a measured reflectivity factor (Zm) and flags each pixel rain or no-rain before any other module runs. Set a reflectivity value and predict how PRE would classify it.",
+      advanced: "PRE derives Zm′ from received power Pr via the radar equation and applies a rain/no-rain threshold ahead of VER, CSF, or retrieval. Set Zm and predict PRE's flagPrecip outcome.",
+    },
+    explain: {
+      beginner: "Below about 18 dBZ the echo is too weak to be confident it's rain, it could just be noise. Above that, PRE calls it rain.",
+      intermediate: "PRE's detection threshold sits near 18 dBZ of measured reflectivity. Below it, flagPrecip is no-rain; above it, the profile moves on to VER and CSF.",
+      advanced: "The ~18 dBZ threshold reflects DPR's minimum detectable signal; flagPrecip and zFactorMeasured are fixed here before any downstream module runs.",
+    },
+    threshold: 18,
+  },
+  ver: {
+    intro: {
+      beginner: "As the radar beam travels down through the air, it crosses a line where the temperature hits 0°C. Above that line, falling particles are ice and snow; below it, they've melted into rain. Move the marker and guess which side you're on.",
+      intermediate: "VER models temperature, pressure, water vapor and cloud liquid water along the beam, and locates the 0°C level, essential for the bright band CSF looks for. Move the marker and predict ice or rain.",
+      advanced: "VER supplies the atmospheric profile used for gaseous and cloud-liquid attenuation correction, and pinpoints the melting layer used downstream by CSF. Predict which side of the 4.5 km freezing level your chosen height falls on.",
+    },
+    explain: {
+      beginner: "The freezing level sits around 4.5 km here. Above it, the falling particles are ice or snow; below it, they've become rain.",
+      intermediate: "With the 0°C level at 4.5 km, anything above is frozen hydrometeors and anything below is liquid rain, this boundary is what produces the radar bright band.",
+      advanced: "The 0°C level (4.5 km) marks the melting layer; CSF uses this height, plus the reflectivity bump it produces, to help separate stratiform from convective profiles.",
+    },
+    freezeLevel: 4.5,
+  },
+  csf: {
+    intro: {
+      beginner: "Tap to scan a rain column. If there's a bright, sudden bump in the signal partway down, that's melting snow, a bright band. Stratiform rain almost always has one; convective storms usually don't.",
+      intermediate: "CSF classifies each profile as stratiform, convective, or other, partly by detecting a bright band and partly by comparing horizontal reflectivity patterns and the Ku–Ka dual-frequency ratio. Scan the profile and classify it.",
+      advanced: "The V-method flags a profile stratiform when a bright band is detected and reflectivity stays below the convective threshold; the H-method and DFRm method cross-check with horizontal structure and Ku–Ka differences. Scan and classify.",
+    },
+    explain: {
+      beginner: "This profile shows a clear bright band, a sign of a wide, gently melting layer, so it's stratiform rain.",
+      intermediate: "A detected bright band with reflectivity below the convective threshold is classified stratiform by the V-method.",
+      advanced: "Bright-band detection plus sub-threshold reflectivity satisfies the V-method's stratiform criterion; H-method and DFRm results would be checked for consistency before finalizing typePrecip.",
+    },
+  },
+  dsd: {
+    intro: {
+      beginner: "The same echo can come from a few big drops or lots of small ones, and that difference changes how much rain actually falls. Drag drop size and watch the satellite's two radar colors, Ku and Ka, react differently as drops grow.",
+      intermediate: "Ku-band and Ka-band reflectivity both grow with drop size, but Ka starts falling behind once drops approach its wavelength. Explore the slider, then predict where they split apart.",
+      advanced: "Rayleigh scattering (Z ∝ D⁶) holds while D ≪ λ; Ka's shorter wavelength (8.4 mm vs Ku's 22 mm) causes it to depart from that curve first, producing the dual-frequency ratio DPR uses to size hydrometeors. Predict the divergence diameter.",
+    },
+    explain: {
+      beginner: "Once raindrops grow past about 2 mm, the shorter Ka-band signal starts weakening compared to Ku, and that gap is what tells the algorithm the drops are big.",
+      intermediate: "Around 2 mm, Ka-band reflectivity begins departing from the D⁶ Rayleigh trend while Ku-band stays closer to it, producing a rising dual-frequency ratio.",
+      advanced: "Divergence emerges near D ≈ 2 mm, where Ka's shorter wavelength brings drop size into the Mie regime sooner than Ku's, the physical basis for DFR-based drop-size retrievals.",
+    },
+  },
+  srt: {
+    intro: {
+      beginner: "Without rain, the ground normally sends back a steady echo. With heavy rain in the way, some of that energy gets absorbed before it even makes the round trip. Measure the echo, then guess how many decibels were lost.",
+      intermediate: "SRT compares the surface echo expected in clear conditions against what's actually observed; the gap approximates path-integrated attenuation (PIA). Measure it and predict the loss in dB.",
+      advanced: "SRT estimates PIA from the deficit between the rain-free reference σ⁰ and the observed surface return, often blended with Hitschfeld–Bordan or dual-wavelength estimates. Predict the PIA in dB from this measurement.",
+    },
+    explain: {
+      beginner: "The echo dropped from 100 to 35, about a 4.6 dB loss. That missing signal tells the algorithm how much rain was in the way.",
+      intermediate: "10·log10(100/35) ≈ 4.6 dB of path-integrated attenuation, SRT feeds this straight to the Solver for attenuation correction.",
+      advanced: "PIA ≈ 4.6 dB from the σ⁰ deficit; in practice this is combined with Hitschfeld–Bordan or Ku–Ka differential estimates for a more robust attenuation correction.",
+    },
+    expected: 100, observed: 35,
+  },
+  trg: {
+    intro: {
+      beginner: "The radar footprint on the ground isn't a single point, it's a patch several kilometers wide. If part of that patch has heavy rain and part has none, the radar sees a blurred average, not the truth. Should we trust the usual math here?",
+      intermediate: "TRG checks for two problems: multiple scattering and non-uniform beam filling (NUBF), where rain isn't the same across a footprint. Look at this patch and decide whether to trust the standard Solver.",
+      advanced: "TRG runs just before SLV, using PRE/VER/SRT/CSF/DSD outputs to flag profiles where NUBF or multiple scattering would invalidate the standard Solver's single-scattering, uniform-fill assumptions.",
+    },
+    explain: {
+      beginner: "This footprint mixes rain and clear cells, that's non-uniform beam filling. TRG would flag it so the Solver can adjust.",
+      intermediate: "A footprint with mixed rain and no-rain cells shows non-uniform beam filling, exactly what TRG is built to catch before the Solver runs.",
+      advanced: "The mixed-cell pattern is a textbook NUBF case: the footprint-averaged echo no longer represents a single homogeneous rain rate, so TRG would flag it for the Solver.",
+    },
+  },
+  slv: {
+    intro: {
+      beginner: "Two storms can send back the exact same radar echo and still be raining at very different rates, because the raindrops themselves are different sizes. Which rain rate belongs to the storm with fewer, bigger drops?",
+      intermediate: "For the same measured Z, different DSD assumptions (Nw, Dm) map to different rain rates. Pick the estimate matching a population of large, sparse drops.",
+      advanced: "R and Z are both functions of the DSD but weight different moments (Z ∝ ∫N(D)D⁶dD, R ∝ ∫N(D)D^3.67v(D)dD); identical Z can correspond to different R depending on Dm and Nw. Pick the rate consistent with large Dm, low Nw.",
+    },
+    explain: {
+      beginner: "Large, sparse drops carry more mass per drop, so for the same echo they produce the higher rain rate, 12 mm/h. This is why CSF and DSD run before SLV: the Solver needs the right particle assumptions to turn Z into an accurate rain rate.",
+      intermediate: "Large-Dm, low-Nw populations yield a higher R for the same Z, about 12 mm/h here. SLV depends on the DSD assumptions handed to it by earlier modules.",
+      advanced: "The higher-order D^3.67 weighting of R versus D⁶ for Z means a large-Dm/low-Nw population resolves to ~12 mm/h at this Z, underscoring why SLV's output is only as good as the DSD and classification feeding it.",
+    },
+  },
+};
 
 export default function StoryPage() {
-  const [chapter, setChapter] = useState(1);
+  const router = useRouter();
+
+  // Screen state
+  const [screen, setScreen] = useState<"home" | "mission">("home");
   const [level, setLevel] = useState<"beginner" | "intermediate" | "advanced">("beginner");
+  const [xpTotal, setXpTotal] = useState(0);
+  const [activeMission, setActiveMission] = useState<string | null>(null);
+  const [done, setDone] = useState<Record<string, boolean>>({
+    pre: false, ver: false, csf: false, dsd: false, srt: false, trg: false, slv: false
+  });
+
+  // Responsive device view state
+  const [isMobileScreen, setIsMobileScreen] = useState(false);
+
+  // Per-mission interaction states
+  const [preVal, setPreVal] = useState(10);
+  const [preChoice, setPreChoice] = useState<"norain" | "rain" | null>(null);
+  const [preChecked, setPreChecked] = useState(false);
+  const [preCorrect, setPreCorrect] = useState(false);
+
+  const [verVal, setVerVal] = useState(2.0);
+  const [verChoice, setVerChoice] = useState<"ice" | "rain" | null>(null);
+  const [verChecked, setVerChecked] = useState(false);
+  const [verCorrect, setVerCorrect] = useState(false);
+
+  const [csfRevealed, setCsfRevealed] = useState(false);
+  const [csfChoice, setCsfChoice] = useState<"strat" | "conv" | null>(null);
+  const [csfChecked, setCsfChecked] = useState(false);
+  const [csfCorrect, setCsfCorrect] = useState(false);
+
+  const [dropSize, setDropSize] = useState(2.0);
+  const [dsdPredicted, setDsdPredicted] = useState("");
+  const [dsdChecked, setDsdChecked] = useState(false);
+  const [dsdCorrect, setDsdCorrect] = useState(false);
+
+  const [srtRevealed, setSrtRevealed] = useState(false);
+  const [srtPredicted, setSrtPredicted] = useState("");
+  const [srtChecked, setSrtChecked] = useState(false);
+  const [srtCorrect, setSrtCorrect] = useState(false);
+
+  const [trgChoice, setTrgChoice] = useState<"trust" | "flag" | null>(null);
+  const [trgChecked, setTrgChecked] = useState(false);
+  const [trgCorrect, setTrgCorrect] = useState(false);
+
+  const [slvChoice, setSlvChoice] = useState<string | null>(null);
+  const [slvChecked, setSlvChecked] = useState(false);
+  const [slvCorrect, setSlvCorrect] = useState(false);
 
   // Sync Learning Level from local storage
   useEffect(() => {
@@ -36,872 +323,831 @@ export default function StoryPage() {
     };
     handleStorageChange();
     window.addEventListener("storage_learning_level", handleStorageChange);
-    return () => window.removeEventListener("storage_learning_level", handleStorageChange);
+
+    // Responsive frame check
+    const checkMobile = () => {
+      setIsMobileScreen(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => {
+      window.removeEventListener("storage_learning_level", handleStorageChange);
+      window.removeEventListener("resize", checkMobile);
+    };
   }, []);
 
-  // --- CHAPTER 1 STATE (Orbits) ---
-  const [c1Prediction, setC1Prediction] = useState<number | null>(null);
-  const [c1Checked, setC1Checked] = useState(false);
-  const [c1Correct, setC1Correct] = useState(false);
-
-  // --- CHAPTER 2 STATE (Timing Delay) ---
-  const [timeDelay, setTimeDelay] = useState(50); // microseconds
-  const [c2Prediction, setC2Prediction] = useState<number | null>(null);
-  const [c2Input, setC2Input] = useState("");
-  const [c2Checked, setC2Checked] = useState(false);
-  const [c2Correct, setC2Correct] = useState(false);
-  
-  // Animation states for radar pulse
-  const [pulseActive, setPulseActive] = useState(false);
-  const [pulsePosition, setPulsePosition] = useState(0);
-  const [reflectivityProfile, setReflectivityProfile] = useState<number[]>([]);
-  const animationRef = useRef<number | null>(null);
-
-  // --- CHAPTER 3 STATE (Rayleigh vs Mie) ---
-  const [dropSize, setDropSize] = useState(2.0); // mm
-  const [c3Prediction, setC3Prediction] = useState<number | null>(null);
-  const [c3Checked, setC3Checked] = useState(false);
-  const [c3Correct, setC3Correct] = useState(false);
-
-  // --- CHAPTER 4 STATE (Pulse Journey stepper) ---
-  const [journeyStep, setJourneyStep] = useState(0);
-  const [c4Prediction, setC4Prediction] = useState<number | null>(null);
-  const [c4Checked, setC4Checked] = useState(false);
-  const [c4Correct, setC4Correct] = useState(false);
-
-  // Chapter 2: Animation loop
-  useEffect(() => {
-    if (pulseActive) {
-      const step = () => {
-        setPulsePosition((prev) => {
-          if (prev >= 100) {
-            setPulseActive(false);
-            return 100;
-          }
-          return prev + 2.0;
-        });
-
-        setReflectivityProfile((prev) => {
-          const currentHeight = Math.floor(pulsePosition);
-          if (currentHeight <= 0 || currentHeight >= 100) return prev;
-          
-          let ref = 0;
-          if (currentHeight >= 35 && currentHeight < 65) ref = 15; // snow
-          else if (currentHeight >= 65 && currentHeight < 72) ref = 35; // bright band melting layer
-          else if (currentHeight >= 72 && currentHeight < 96) ref = 25; // rain
-          else if (currentHeight >= 96) ref = 50; // surface
-
-          const newProfile = [...prev];
-          newProfile[currentHeight] = ref;
-          return newProfile;
-        });
-
-        animationRef.current = requestAnimationFrame(step);
-      };
-      animationRef.current = requestAnimationFrame(step);
-    } else {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    }
-    return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    };
-  }, [pulseActive, pulsePosition]);
-
-  const triggerPulse = () => {
-    setPulsePosition(0);
-    setReflectivityProfile(new Array(100).fill(0));
-    setPulseActive(true);
+  const setLevelAndSync = (newLevel: "beginner" | "intermediate" | "advanced") => {
+    setLevel(newLevel);
+    localStorage.setItem("gpm_learning_level", newLevel);
+    window.dispatchEvent(new Event("storage_learning_level"));
   };
 
-  const checkC2Answer = () => {
-    setC2Checked(true);
-    const targetDistance = (0.3 * timeDelay) / 2;
-    const userVal = parseFloat(c2Input);
-    if (Math.abs(userVal - targetDistance) < 0.15) {
-      setC2Correct(true);
-    } else {
-      setC2Correct(false);
+  const goToMission = (id: string) => {
+    setActiveMission(id);
+    setScreen("mission");
+    if (id === "pre") {
+      setPreVal(10);
+      setPreChoice(null);
+      setPreChecked(false);
+      setPreCorrect(false);
+    } else if (id === "ver") {
+      setVerVal(2.0);
+      setVerChoice(null);
+      setVerChecked(false);
+      setVerCorrect(false);
+    } else if (id === "csf") {
+      setCsfRevealed(false);
+      setCsfChoice(null);
+      setCsfChecked(false);
+      setCsfCorrect(false);
+    } else if (id === "dsd") {
+      setDropSize(2.0);
+      setDsdPredicted("");
+      setDsdChecked(false);
+      setDsdCorrect(false);
+    } else if (id === "srt") {
+      setSrtRevealed(false);
+      setSrtPredicted("");
+      setSrtChecked(false);
+      setSrtCorrect(false);
+    } else if (id === "trg") {
+      setTrgChoice(null);
+      setTrgChecked(false);
+      setTrgCorrect(false);
+    } else if (id === "slv") {
+      setSlvChoice(null);
+      setSlvChecked(false);
+      setSlvCorrect(false);
     }
   };
 
-  const journeyStages = [
-    {
-      title: "Pulse Transmission",
-      question: "If GPM flies at 435 km, how long does the pulse take to reach the ocean?",
-      options: [
-        "1.45 milliseconds",
-        "1.45 seconds",
-        "5 seconds"
-      ],
-      correct: 0,
-      explain: {
-        beginner: "Microwaves travel at the speed of light, crossing the 435 km distance in a blink of an eye—just 1.45 thousandths of a second.",
-        intermediate: "Speed of light is 300,000 km/s. Time = Distance / speed = 435 / 300,000 = 1.45 milliseconds.",
-        advanced: "The round-trip delay is tracked from transmission gate ($r=0$) using a Master Clock (5.76 MHz frequency) resolving range gates to 125m resolution."
-      }
-    },
-    {
-      title: "Dry Snow Layer",
-      question: "Why does dry snow cause very little signal loss (attenuation)?",
-      options: [
-        "Snow is cold and freezes the beam.",
-        "Dry ice crystals do not absorb microwave energy because liquid water is absent.",
-        "Snow acts like a mirror."
-      ],
-      correct: 1,
-      explain: {
-        beginner: "Dry ice crystals behave almost like clean air—they bounce a small amount of signal back but do not soak up the beam's energy.",
-        intermediate: "Dry ice has a low dielectric index ($|K|^2 \\approx 0.176$), causing near-zero absorption (specific attenuation $k \\approx 0$).",
-        advanced: "Because the imaginary part of the complex refractive index of ice is tiny, the specific attenuation coefficient ($k$) in the dry snow region is negligible ($k < 0.02$ dB/km at both Ku and Ka bands)."
-      }
-    },
-    {
-      title: "The Melting Layer",
-      question: "What makes the melting layer look like an intense storm peak (Bright Band)?",
-      options: [
-        "Falling snowflakes accelerate.",
-        "Dry snow crystals melt, getting coated in a film of water that acts like a massive raindrop.",
-        "Ice crystals merge."
-      ],
-      correct: 1,
-      explain: {
-        beginner: "As dry snow starts to melt, the snowflake gets wrapped in a sticky water layer. This film acts like a giant water mirror, reflecting massive energy back to the radar.",
-        intermediate: "The dielectric factor of melting snow rises to match liquid water ($|K|^2 \\approx 0.93$), causing a surge in reflectivity (Ze) due to size and coating.",
-        advanced: "This is the Bright Band. The mixture of ice cores covered in water maximizes the dielectric constant ($|K|^2$) while preserving the large physical diameter of the snowflake, causing a localized peak in the backscattering cross-section (GPM variable `zFactorMeasured`)."
-      }
-    },
-    {
-      title: "Rain Attenuation",
-      question: "Which band suffers worse attenuation as it travels down through liquid rain?",
-      options: [
-        "Ku-band (13.6 GHz)",
-        "Ka-band (35.5 GHz)",
-        "Both suffer identical loss"
-      ],
-      correct: 1,
-      explain: {
-        beginner: "The Ka-band has a shorter wavelength and gets blocked/absorbed easily by water droplets. It loses energy rapidly as it descends.",
-        intermediate: "Ka-band (8.4mm wavelength) is closer in size to raindrops, transitioning from Rayleigh to Mie scattering. Attenuation coefficient $k$ is much higher than Ku-band.",
-        advanced: "At Ka-band (35.5 GHz), Mie scattering rolloff and specific attenuation ($k$) are significant. Ka-band signal experiences up to 4 times more attenuation per km than Ku-band, leading to a large DFR (`zFactorMeasured[Ku] - zFactorMeasured[Ka]`) near the surface."
-      }
-    },
-    {
-      title: "Surface Echo",
-      question: "What can the reduction in the ocean reflection echo tell us?",
-      options: [
-        "The ocean depth.",
-        "The total amount of signal lost through the entire storm column (Path Integrated Attenuation).",
-        "Wind speed."
-      ],
-      correct: 1,
-      explain: {
-        beginner: "Since we know how strong the ocean mirror usually is under clear skies, the decrease in the ocean echo tells us exactly how much the rain column blocked our beam.",
-        intermediate: "Comparing the measured sea backscatter to clear air gives the total column Path Integrated Attenuation: $PIA = \\sigma_{0,\\text{ref}} - \\sigma_{0,\\text{meas}}$.",
-        advanced: "This is the Surface Reference Technique (SRT). It outputs the total path integrated attenuation ($PIA_{\\text{SRT}}$), which provides a crucial boundary constraint to scale the Hitschfeld-Bordan profile solver."
-      }
-    }
+  const goHome = () => setScreen("home");
+
+  const finishMission = () => {
+    if (!activeMission) return;
+    const isCorrect = 
+      activeMission === "pre" ? preCorrect :
+      activeMission === "ver" ? verCorrect :
+      activeMission === "csf" ? csfCorrect :
+      activeMission === "dsd" ? dsdCorrect :
+      activeMission === "srt" ? srtCorrect :
+      activeMission === "trg" ? trgCorrect :
+      activeMission === "slv" ? slvCorrect : false;
+
+    setDone(prev => ({ ...prev, [activeMission]: true }));
+    setXpTotal(prev => prev + (isCorrect ? 40 : 10));
+    setScreen("home");
+  };
+
+  // Derive layout configurations
+  const levelDefs = [
+    { id: "beginner", label: "Beginner" },
+    { id: "intermediate", label: "Intermediate" },
+    { id: "advanced", label: "Advanced" },
   ];
+  const levels = levelDefs.map((l) => ({
+    id: l.id,
+    label: l.label,
+    checked: level === l.id,
+    onSelect: () => setLevelAndSync(l.id as any)
+  }));
 
-  return (
-    <div className="flex flex-col gap-6 max-w-6xl mx-auto pb-12">
-      {/* Chapter Stepper */}
-      <div className="flex items-center justify-between border-b border-gray-800 pb-4">
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-orange-400 font-semibold tracking-widest uppercase font-mono flex items-center gap-1.5">
-            <GraduationCap className="w-4 h-4" />
-            <span>Rediscovery Mode ({level} depth)</span>
-          </span>
-          <h1 className="text-xl font-bold text-white">
-            Chapter {chapter}: {
-              chapter === 1 ? "Meet the GPM satellite" :
-              chapter === 2 ? "Timing Echoes" :
-              chapter === 3 ? "Wave Scattering Physics" :
-              "The Journey of a Radar Pulse"
-            }
-          </h1>
+  const order = ["pre", "ver", "csf", "dsd", "srt", "trg", "slv"];
+  const missions = MODULE_DEFS.map((m, i) => {
+    const unlocked = i === 0 || done[order[i - 1]];
+    const isDone = done[m.id];
+    return {
+      id: m.id,
+      kicker: "Step " + m.step + " of 7",
+      title: m.title,
+      desc: CONTENT[m.id].intro.beginner.split(".")[0] + ".",
+      tagLabel: isDone ? "Done" : unlocked ? "Start" : "Locked",
+      tagClass: isDone ? "tag-accent" : unlocked ? "tag-outline" : "tag-neutral",
+      cursor: unlocked ? "pointer" : "default",
+      opacity: unlocked ? 1 : 0.5,
+      onOpen: unlocked ? () => goToMission(m.id) : () => {},
+    };
+  });
+  const doneCount = order.filter((id) => done[id]).length;
+  const progressPct = Math.round((doneCount / 7) * 100);
+
+  const activeDef = activeMission ? MODULE_DEFS.find((m) => m.id === activeMission) : null;
+  const missionKicker = activeDef ? activeDef.kicker : "";
+  const missionTitle = activeDef ? activeDef.title : "";
+  const content = activeMission ? CONTENT[activeMission] : null;
+  const introText = content ? content.intro[level] : "";
+
+  // ---- per-module derived values ----
+  let hasSlider = false, sliderLabel = "", sliderValueLabel = "", sliderMin = 0, sliderMax = 100, sliderStep = 1, sliderVal = 0, sliderLocked = false, onSliderChange = (e: any) => {};
+  let showBar = false, barPct = 0, barLeftLabel = "", barRightLabel = "";
+  let showRevealButton = false, revealLabel = "", revealDone = false, onReveal = () => {};
+  let isDsd = false, isCsf = false, isTrg = false, isSlv = false;
+  let showChoice = false, choiceLabel = "", choiceOptions: any[] = [], choiceChecked = false;
+  let showNumeric = false, numericLabel = "", numericPlaceholder = "", numericVal = "", onNumericChange = (e: any) => {}, numericChecked = false, showNumericCheckButton = false, checkNumeric = () => {}, numericCheckDisabled = true;
+  let isChecked = false, feedbackHeadline = "", feedbackColor = "", feedbackBg = "", explainText = "";
+  let kuPct = 0, kaPct = 0, dfrLabel = "0.0";
+  let trgCells: any[] = [];
+  let dropSizeLabel = "2.0";
+  let onDropSizeChange = (e: any) => {};
+
+  if (activeMission === "pre") {
+    hasSlider = true;
+    sliderLabel = "Measured reflectivity";
+    sliderMin = 0; sliderMax = 40; sliderStep = 1; sliderVal = preVal;
+    sliderValueLabel = preVal + " dBZ";
+    sliderLocked = preChecked;
+    onSliderChange = (e: any) => setPreVal(parseInt(e.target.value, 10));
+    showBar = true; barPct = Math.round((preVal / 40) * 100);
+    barLeftLabel = "clear"; barRightLabel = "strong echo";
+    showChoice = !preChecked;
+    choiceLabel = "Rain, or no rain?";
+    choiceOptions = [
+      { label: "No rain", btnClass: preChoice === "norain" ? "btn-primary" : "btn-secondary", onPick: () => setPreChoice("norain") },
+      { label: "Rain", btnClass: preChoice === "rain" ? "btn-primary" : "btn-secondary", onPick: () => setPreChoice("rain") },
+    ];
+    choiceChecked = preChecked;
+    isChecked = preChecked;
+  }
+
+  if (activeMission === "ver") {
+    hasSlider = true;
+    sliderLabel = "Beam height";
+    sliderMin = 0; sliderMax = 8; sliderStep = 0.5; sliderVal = verVal;
+    sliderValueLabel = verVal + " km";
+    sliderLocked = verChecked;
+    onSliderChange = (e: any) => setVerVal(parseFloat(e.target.value));
+    showBar = true; barPct = Math.round((verVal / 8) * 100);
+    barLeftLabel = "surface"; barRightLabel = "8 km";
+    showChoice = !verChecked;
+    choiceLabel = "Ice/snow, or rain, at this height?";
+    choiceOptions = [
+      { label: "Ice / snow", btnClass: verChoice === "ice" ? "btn-primary" : "btn-secondary", onPick: () => setVerChoice("ice") },
+      { label: "Rain", btnClass: verChoice === "rain" ? "btn-primary" : "btn-secondary", onPick: () => setVerChoice("rain") },
+    ];
+    choiceChecked = verChecked;
+    isChecked = verChecked;
+  }
+
+  if (activeMission === "csf") {
+    isCsf = true;
+    showChoice = csfRevealed && !csfChecked;
+    choiceLabel = "Stratiform, or convective?";
+    choiceOptions = [
+      { label: "Stratiform", btnClass: csfChoice === "strat" ? "btn-primary" : "btn-secondary", onPick: () => setCsfChoice("strat") },
+      { label: "Convective", btnClass: csfChoice === "conv" ? "btn-primary" : "btn-secondary", onPick: () => setCsfChoice("conv") },
+    ];
+    choiceChecked = csfChecked;
+    isChecked = csfChecked;
+  }
+
+  if (activeMission === "dsd") {
+    isDsd = true;
+    dropSizeLabel = dropSize.toFixed(1);
+    onDropSizeChange = (e: any) => setDropSize(parseFloat(e.target.value));
+    const ku = Math.pow(dropSize, 6);
+    const ka = dropSize < 2 ? Math.pow(dropSize, 6) : Math.pow(dropSize, 6) * (1 - (dropSize - 2) * 0.18);
+    const maxRef = Math.pow(5, 6);
+    kuPct = Math.min(100, (ku / maxRef) * 100);
+    kaPct = Math.min(100, Math.max(2, (ka / maxRef) * 100));
+    dfrLabel = (10 * Math.log10(ku / Math.max(ka, 0.001))).toFixed(1);
+    showNumeric = true;
+    numericLabel = "At what drop size (mm) do the two bands start to diverge?";
+    numericPlaceholder = "e.g. 2";
+    numericVal = dsdPredicted;
+    onNumericChange = (e: any) => setDsdPredicted(e.target.value);
+    numericChecked = dsdChecked;
+    showNumericCheckButton = !dsdChecked;
+    numericCheckDisabled = !dsdPredicted || String(dsdPredicted).trim() === "";
+    checkNumeric = () => {
+      const val = parseFloat(dsdPredicted);
+      setDsdChecked(true);
+      setDsdCorrect(!isNaN(val) && Math.abs(val - 2) <= 0.6);
+    };
+    isChecked = dsdChecked;
+  }
+
+  if (activeMission === "srt") {
+    showRevealButton = !srtRevealed;
+    revealLabel = "Measure the surface echo";
+    onReveal = () => setSrtRevealed(true);
+    hasSlider = true;
+    sliderLabel = "Surface echo strength";
+    sliderMin = 0; sliderMax = 100; sliderStep = 1;
+    sliderVal = srtRevealed ? 35 : 100;
+    sliderValueLabel = sliderVal + " / 100";
+    sliderLocked = true;
+    showBar = true; barPct = sliderVal;
+    barLeftLabel = "0 (fully absorbed)"; barRightLabel = "100 (clear-sky reference)";
+    showRevealButton = !srtRevealed;
+    showNumeric = srtRevealed;
+    numericLabel = "How much signal was lost, in dB (PIA)?";
+    numericPlaceholder = "e.g. 5";
+    numericVal = srtPredicted;
+    onNumericChange = (e: any) => setSrtPredicted(e.target.value);
+    numericChecked = srtChecked;
+    showNumericCheckButton = srtRevealed && !srtChecked;
+    numericCheckDisabled = !srtPredicted || String(srtPredicted).trim() === "";
+    checkNumeric = () => {
+      const val = parseFloat(srtPredicted);
+      setSrtChecked(true);
+      setSrtCorrect(!isNaN(val) && Math.abs(val - 4.6) <= 1);
+    };
+    isChecked = srtChecked;
+  }
+
+  if (activeMission === "trg") {
+    isTrg = true;
+    const pattern = [1, 0, 1, 0, 1, 1, 1, 0, 0];
+    trgCells = pattern.map((v) => ({ color: v ? "var(--color-accent-200)" : "var(--color-neutral-200)" }));
+    showChoice = !trgChecked;
+    choiceLabel = "Trust the standard Solver, or flag this footprint?";
+    choiceOptions = [
+      { label: "Trust it", btnClass: trgChoice === "trust" ? "btn-primary" : "btn-secondary", onPick: () => setTrgChoice("trust") },
+      { label: "Flag NUBF", btnClass: trgChoice === "flag" ? "btn-primary" : "btn-secondary", onPick: () => setTrgChoice("flag") },
+    ];
+    choiceChecked = trgChecked;
+    isChecked = trgChecked;
+  }
+
+  if (activeMission === "slv") {
+    isSlv = true;
+    showChoice = !slvChecked;
+    choiceLabel = "Which rain rate matches the large-drop storm?";
+    choiceOptions = [
+      { label: "5 mm/h", btnClass: slvChoice === "5" ? "btn-primary" : "btn-secondary", onPick: () => setSlvChoice("5") },
+      { label: "12 mm/h", btnClass: slvChoice === "12" ? "btn-primary" : "btn-secondary", onPick: () => setSlvChoice("12") },
+    ];
+    choiceChecked = slvChecked;
+    isChecked = slvChecked;
+  }
+
+  // Generic Choice confirming
+  const choiceCheckMap: Record<string, () => void> = {
+    pre: () => { setPreChecked(true); setPreCorrect((preChoice === "rain") === (preVal >= 18)); },
+    ver: () => { setVerChecked(true); setVerCorrect((verChoice === "ice") === (verVal >= 4.5)); },
+    csf: () => { setCsfChecked(true); setCsfCorrect(csfChoice === "strat"); },
+    trg: () => { setTrgChecked(true); setTrgCorrect(trgChoice === "flag"); },
+    slv: () => { setSlvChecked(true); setSlvCorrect(slvChoice === "12"); },
+  };
+  const choiceMadeMap: Record<string, any> = { pre: preChoice, ver: verChoice, csf: csfChoice, trg: trgChoice, slv: slvChoice };
+  let showChoiceConfirm = false, choiceConfirmDisabled = true, confirmChoice = () => {};
+  if (["pre", "ver", "csf", "trg", "slv"].includes(activeMission || "") && showChoice) {
+    showChoiceConfirm = true;
+    choiceConfirmDisabled = !choiceMadeMap[activeMission || ""];
+    confirmChoice = choiceCheckMap[activeMission || ""];
+  }
+
+  if (isChecked && content && activeMission) {
+    const correct = 
+      activeMission === "pre" ? preCorrect :
+      activeMission === "ver" ? verCorrect :
+      activeMission === "csf" ? csfCorrect :
+      activeMission === "dsd" ? dsdCorrect :
+      activeMission === "srt" ? srtCorrect :
+      activeMission === "trg" ? trgCorrect :
+      activeMission === "slv" ? slvCorrect : false;
+
+    const headlines: Record<string, string> = {
+      pre: correct ? "Correct classification" : "Not quite",
+      ver: correct ? "Correct" : "Not quite",
+      csf: correct ? "Correct — stratiform" : "Actually, stratiform",
+      trg: correct ? "Correct — flag it" : "Actually, this should be flagged",
+      slv: correct ? "Correct — 12 mm/h" : "Actually, 12 mm/h",
+      dsd: correct ? "Correct — around 2 mm" : "Not quite — it's around 2 mm",
+      srt: correct ? "Correct — about 4.6 dB" : "Not quite — about 4.6 dB",
+    };
+    feedbackHeadline = headlines[activeMission];
+    feedbackColor = correct ? "var(--color-accent-700)" : "var(--color-text)";
+    feedbackBg = correct ? "var(--color-accent-100)" : "var(--color-surface)";
+    explainText = content.explain[level];
+  }
+
+  // Common UI handlers
+  const handleNavClick = (route: string) => {
+    router.push(route);
+  };
+
+  const CSS_STYLES = `
+    :root {
+      --color-bg: #f3f2f2;
+      --color-surface: #eae9e9;
+      --color-text: #201e1d;
+      --color-accent: #ec3013;
+      --color-accent-2: #e15b47;
+      --color-divider: rgba(32, 30, 29, 0.4);
+
+      --color-neutral-100: #f8f4f4;
+      --color-neutral-200: #eae7e7;
+      --color-neutral-300: #d7d3d3;
+      --color-neutral-400: #bab6b6;
+      --color-neutral-500: #9b9797;
+      --color-neutral-600: #7d7979;
+      --color-neutral-700: #605d5d;
+      --color-neutral-800: #444141;
+      --color-neutral-900: #2d2b2b;
+
+      --color-accent-100: #fff2ef;
+      --color-accent-200: #ffe0d9;
+      --color-accent-300: #ffc4b8;
+      --color-accent-400: #ff9783;
+      --color-accent-500: #ff563c;
+      --color-accent-600: #dd2b0f;
+      --color-accent-700: #ae1800;
+      --color-accent-800: #7c1405;
+      --color-accent-900: #4d170e;
+
+      --color-accent-2-100: #fff2ef;
+      --color-accent-2-200: #ffe0da;
+      --color-accent-2-300: #ffc4b9;
+      --color-accent-2-400: #ff9784;
+      --color-accent-2-500: #ef6853;
+      --color-accent-2-600: #c94b39;
+      --color-accent-2-700: #9e3526;
+      --color-accent-2-800: #71261b;
+      --color-accent-2-900: #471d16;
+
+      --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-heading-weight: 800;
+      --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+      --space-1: 4.0px;
+      --space-2: 8.0px;
+      --space-3: 12.0px;
+      --space-4: 16.0px;
+      --space-6: 24.0px;
+      --space-8: 32.0px;
+
+      --radius-sm: 0px;
+      --radius-md: 0px;
+      --radius-lg: 0px;
+
+      --shadow-sm: 0 1px 2px rgba(45, 43, 43, 0.14);
+      --shadow-md: 0 3px 10px rgba(45, 43, 43, 0.16);
+      --shadow-lg: 0 12px 32px rgba(45, 43, 43, 0.22);
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      cursor: pointer; text-decoration: none;
+      font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+      font-size: 14px; line-height: 1.2; color: var(--color-text);
+      background: transparent; border: 1px solid transparent;
+      padding: var(--space-2) calc(var(--space-3) * 1.2);
+      border-radius: var(--radius-md);
+      transition: all 0.15s ease;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary { background: var(--color-accent); color: var(--color-bg); }
+    .btn-primary:hover:not(:disabled) { background: var(--color-accent-600); }
+    .btn-primary:active:not(:disabled) { background: var(--color-accent-700); }
+    .btn-secondary { border: 1.5px solid var(--color-divider); }
+    .btn-secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+    .btn-secondary:active:not(:disabled) { background: color-mix(in srgb, var(--color-text) 14%, transparent); }
+    .btn-icon { width: 36px; height: 36px; padding: 0; }
+    .btn-block { width: 100%; margin-top: var(--space-2); justify-content: flex-start; text-align: left; }
+
+    .field > label {
+      display: block; font-size: 12px; margin-bottom: 5px;
+      color: color-mix(in srgb, var(--color-text) 70%, transparent);
+    }
+    .input {
+      width: 100%; min-height: 36px; padding: 6px 10px; font: inherit;
+      font-size: 14px; color: var(--color-text); caret-color: var(--color-accent);
+      background: var(--color-surface);
+      border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+    }
+    .input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+    .input:focus { border-color: var(--color-accent); outline: none; }
+
+    .seg {
+      display: inline-flex; overflow: hidden;
+      border: 1.5px solid var(--color-divider); border-radius: var(--radius-md);
+    }
+    .seg-opt {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 12px; font-size: 13px; cursor: pointer;
+    }
+    .seg-opt + .seg-opt { border-left: 1.5px solid var(--color-divider); }
+
+    .card {
+      display: flex; flex-direction: column; gap: var(--space-2);
+      padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface);
+    }
+    .card-kicker { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent); }
+    .card-title {
+      font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+      font-size: 17px; line-height: 1.2;
+    }
+    .card-body { margin: 0; font-size: 13px; opacity: 0.8; flex: 1; }
+    .elev-sm { box-shadow: var(--shadow-sm); }
+    .elev-md { box-shadow: var(--shadow-md); }
+
+    .tag {
+      display: inline-flex; align-items: center; font-size: 11px;
+      letter-spacing: 0.02em; padding: 3px 10px;
+      border-radius: calc(var(--radius-md) * 0.75);
+    }
+    .tag-accent { background: var(--color-accent-100); color: var(--color-accent-800); }
+    .tag-accent-2 { background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
+    .tag-neutral { background: var(--color-neutral-100); color: var(--color-neutral-800); }
+    .tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent); }
+  `;
+
+  // =============================================================
+  // Screen Render Blocks
+  // =============================================================
+  const homeScreen = (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--color-bg)", fontFamily: "var(--font-body)", color: "var(--color-text)" }}>
+      <div style={{ flex: 1, overflow: "auto", padding: "60px 20px 12px" }}>
+        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.14em", color: "var(--color-accent-700)", textTransform: "uppercase", marginBottom: 4 }}>Rediscovery Lab</div>
+        <h1 style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 26, margin: "0 0 4px", letterSpacing: "-0.01em" }}>The GPM · DPR Story</h1>
+        <p style={{ fontSize: 13, lineHeight: 1.5, color: "color-mix(in srgb, var(--color-text) 65%, transparent)", marginBottom: 20 }}>
+          Radar sends a pulse → gets an echo → decides if it's rain → classifies the rain column → maps the raindrop sizes → calculates attenuation losses → gauges retrieval trust → and finally, computes the rain rate. Explore each module.
+        </p>
+
+        {/* Level segment selector */}
+        <div className="seg" style={{ marginBottom: 20 }}>
+          {levels.map((lv) => (
+            <label 
+              key={lv.id} 
+              className={`seg-opt ${lv.checked ? "bg-[#ec3013] text-[#f3f2f2]" : "hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)]"}`}
+              style={{ transition: "all 0.15s ease" }}
+            >
+              <input 
+                type="radio" 
+                name="level-home" 
+                checked={lv.checked} 
+                onChange={lv.onSelect} 
+                style={{ position: "absolute", opacity: 0, width: 0, height: 0 }}
+              />
+              <span>{lv.label}</span>
+            </label>
+          ))}
         </div>
-        
-        <div className="flex gap-2">
-          <button 
-            onClick={() => {
-              setChapter(prev => Math.max(prev - 1, 1));
-              setC1Checked(false);
-              setC2Checked(false);
-              setC3Checked(false);
-              setC4Checked(false);
-            }}
-            disabled={chapter === 1}
-            className="p-2 rounded-lg bg-slate-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          
-          <div className="flex items-center gap-1.5 px-3 bg-slate-900 border border-gray-800 rounded-lg text-xs font-mono text-gray-400">
-            {chapter} / 4
-          </div>
 
-          <button 
-            onClick={() => {
-              setChapter(prev => Math.min(prev + 1, 4));
-              setC1Checked(false);
-              setC2Checked(false);
-              setC3Checked(false);
-              setC4Checked(false);
-            }}
-            disabled={
-              (chapter === 1 && !c1Correct) ||
-              (chapter === 2 && !c2Correct) ||
-              (chapter === 3 && !c3Correct) ||
-              chapter === 4
-            }
-            className="p-2 rounded-lg bg-slate-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
-          >
-            <ArrowRight className="w-5 h-5" />
-          </button>
+        {/* Status */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <span style={{ fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>Radar Cadet · {xpTotal} XP</span>
+          <span style={{ fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{doneCount}/7 modules</span>
+        </div>
+        <div style={{ height: 6, background: "var(--color-neutral-200)", marginBottom: 24 }}>
+          <div style={{ height: "100%", background: "var(--color-accent)", width: `${progressPct}%`, transition: "width 0.3s ease" }}></div>
+        </div>
+
+        <h6 style={{ marginBottom: 12 }}>The Seven Modules</h6>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {missions.map((m) => (
+            <div 
+              key={m.id}
+              className="card elev-sm" 
+              style={{ cursor: m.cursor, opacity: m.opacity, transition: "all 0.2s" }} 
+              onClick={m.onOpen}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                  <span className="card-kicker">{m.kicker}</span>
+                  <span className="card-title">{m.title}</span>
+                  <p className="card-body">{m.desc}</p>
+                </div>
+                <span className={`tag ${m.tagClass}`} style={{ whiteSpace: "nowrap" }}>{m.tagLabel}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* --- CHAPTER 1: ORBITS --- */}
-      {chapter === 1 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] text-gray-500 font-mono font-bold uppercase tracking-widest">Step 1: Observe & Experiment</span>
-              <p className="text-gray-300 text-xs leading-relaxed font-light">
-                Look at the 3D GPM orbital model on the right. GPM does not cross the poles. Instead, it orbits tilted at a 65-degree angle, sweeping a cross-track swath pattern on the Earth's surface.
-              </p>
-            </div>
-
-            {/* Prediction Challenge */}
-            <div className="glass-panel p-5 rounded-xl border border-gray-850 bg-slate-950/40 flex flex-col gap-4">
-              <div className="flex items-center gap-2 border-b border-gray-850 pb-2">
-                <QuestionIcon className="w-4.5 h-4.5 text-orange-400 animate-pulse" />
-                <span className="text-xs font-bold text-white">Predict & Discover Patterns</span>
-              </div>
-              
-              <p className="text-xs text-gray-300 font-light leading-relaxed">
-                If the satellite orbits tilted at 65 degrees instead of a standard sun-synchronous polar orbit (which crosses the poles at the exact same local time daily), what will be the consequence for mapping rain?
-              </p>
-
-              <div className="flex flex-col gap-2.5">
-                {[
-                  "It will take more rocket fuel to stay in space.",
-                  "It allows GPM to scan the same geographic coordinates at different times of day, mapping the hourly precipitation cycle.",
-                  "It prevents the radar sensors from overheating."
-                ].map((opt, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      if (!c1Checked) setC1Prediction(idx);
-                    }}
-                    disabled={c1Checked}
-                    className={`p-3 text-left rounded-lg border text-xs transition-all ${
-                      c1Checked 
-                        ? idx === 1 
-                          ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400 font-semibold"
-                          : c1Prediction === idx 
-                            ? "bg-red-950/25 border-red-500/30 text-red-400"
-                            : "bg-slate-950 border-gray-900 text-gray-600 opacity-60"
-                        : c1Prediction === idx 
-                          ? "bg-blue-900/10 border-blue-500/40 text-blue-400 font-semibold"
-                          : "bg-slate-900/40 border-gray-800 text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-
-              {!c1Checked ? (
-                <button
-                  onClick={() => {
-                    setC1Checked(true);
-                    if (c1Prediction === 1) setC1Correct(true);
-                  }}
-                  disabled={c1Prediction === null}
-                  className="py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-xs font-bold text-white disabled:opacity-40"
-                >
-                  Submit Prediction
-                </button>
-              ) : (
-                <div className="flex flex-col gap-3 p-3 rounded bg-slate-900 border border-gray-850 text-xs animate-fadeIn text-gray-400">
-                  <div className="flex items-center gap-1.5 font-bold mb-1">
-                    {c1Correct ? (
-                      <span className="text-emerald-400 flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Correct Prediction!</span>
-                    ) : (
-                      <span className="text-red-400 flex items-center gap-1.5"><XCircle className="w-4 h-4" /> Prediction Incorrect</span>
-                    )}
-                  </div>
-
-                  {/* Level-adjusted Explanation */}
-                  {level === "beginner" && (
-                    <p className="leading-relaxed font-light">
-                      <strong>The Principle:</strong> Rain does not fall on a fixed clock. By tilting the orbit, GPM crosses locations at 8:00 AM today, 10:00 AM tomorrow, and 2:00 PM the next day, letting us map early morning storms vs afternoon showers.
-                    </p>
-                  )}
-                  {level === "intermediate" && (
-                    <p className="leading-relaxed font-light">
-                      <strong>Explanation:</strong> A tilted orbit precesses relative to the sun. This means GPM samples the diurnal (hourly) precipitation cycles over weeks, which is impossible with fixed sun-synchronous orbits.
-                    </p>
-                  )}
-                  {level === "advanced" && (
-                    <div className="flex flex-col gap-2 font-light">
-                      <p>
-                        <strong>Formalization:</strong> The orbit inclination is $65^\circ$ with a nodal precession period of 53 days. This precessing orbit samples the complete diurnal cycle of tropical and sub-tropical precipitation.
-                      </p>
-                      <span className="text-[9px] font-mono text-gray-500">Related variables: `orbitState`, `scanStatus`.</span>
-                    </div>
-                  )}
-
-                  {c1Correct && (
-                    <button 
-                      onClick={() => setChapter(2)}
-                      className="mt-2 py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs self-start"
-                    >
-                      Unlock Chapter 2
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <ThreeOrbitalScan />
-          </div>
+      {/* Navigation tabs */}
+      <div style={{ flex: "none", display: "flex", borderTop: "2.5px solid var(--color-divider)", padding: "10px 8px 26px", background: "var(--color-bg)" }}>
+        <div onClick={goHome} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "var(--color-accent)", cursor: "pointer" }}>
+          <HomeIcon width="20" height="20" />
+          <span style={{ fontSize: 9, fontWeight: 700 }}>Home</span>
         </div>
-      )}
+        <div onClick={() => handleNavClick("/explorer")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "var(--color-neutral-600)", cursor: "pointer" }}>
+          <CompassIcon width="20" height="20" />
+          <span style={{ fontSize: 9, fontWeight: 700 }}>Modules</span>
+        </div>
+        <div onClick={() => handleNavClick("/tutor")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "var(--color-neutral-600)", cursor: "pointer" }}>
+          <MessageIcon width="20" height="20" />
+          <span style={{ fontSize: 9, fontWeight: 700 }}>Tutor</span>
+        </div>
+        <div onClick={() => handleNavClick("/")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "var(--color-neutral-600)", cursor: "pointer" }}>
+          <UserIcon width="20" height="20" />
+          <span style={{ fontSize: 9, fontWeight: 700 }}>Profile</span>
+        </div>
+      </div>
+    </div>
+  );
 
-      {/* --- CHAPTER 2: TIMING ECHOES --- */}
-      {chapter === 2 && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] text-gray-500 font-mono font-bold uppercase tracking-widest">Step 1: Observe & Experiment</span>
-              <p className="text-gray-300 text-xs leading-relaxed font-light">
-                Use the slider to adjust the delay. Press <strong>Fire Pulse</strong> to watch the pulse travel down and bounce back to the satellite.
-              </p>
-            </div>
+  const missionScreen = (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--color-bg)", fontFamily: "var(--font-body)", color: "var(--color-text)" }}>
+      <div style={{ flex: 1, overflow: "auto", padding: "58px 20px 12px" }}>
 
-            {/* Timing Challenge */}
-            <div className="glass-panel p-5 rounded-xl border border-gray-850 bg-slate-950/40 flex flex-col gap-4">
-              <div className="flex items-center gap-2 border-b border-gray-850 pb-2">
-                <QuestionIcon className="w-4.5 h-4.5 text-orange-400" />
-                <span className="text-xs font-bold text-white">Predict & Calculate Range</span>
-              </div>
-
-              {/* Time delay slider */}
-              <div className="flex flex-col gap-2 p-3 rounded bg-slate-900 border border-gray-850">
-                <label className="text-xs font-semibold text-gray-400 flex justify-between">
-                  <span>Adjust Echo Return Delay:</span>
-                  <span className="text-orange-400 font-mono font-bold">{timeDelay} microseconds (μs)</span>
-                </label>
-                <input 
-                  type="range" min="10" max="80" step="2" value={timeDelay}
-                  onChange={(e) => {
-                    if (!c2Checked) {
-                      setTimeDelay(Number(e.target.value));
-                      triggerPulse();
-                    }
-                  }}
-                  className="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-orange-400"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-gray-400 leading-normal">
-                  "If the echo takes exactly <span className="text-white font-bold">{timeDelay} μs</span> to return, what is the distance to the storm?"
-                </p>
-                
-                <div className="flex gap-2 items-center mt-1">
-                  <input
-                    type="number" placeholder="Enter range (km)" value={c2Input}
-                    onChange={(e) => setC2Input(e.target.value)} disabled={c2Checked}
-                    className="flex-1 bg-slate-900 border border-gray-800 rounded-lg p-2.5 text-xs focus:outline-none focus:border-orange-500"
-                  />
-                  {!c2Checked ? (
-                    <button
-                      onClick={checkC2Answer}
-                      className="py-2.5 px-4 rounded-lg bg-orange-600 hover:bg-orange-500 text-xs font-bold text-white"
-                    >
-                      Check
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setC2Checked(false);
-                        setC2Input("");
-                      }}
-                      className="py-2.5 px-4 rounded-lg bg-gray-900 border border-gray-800 text-xs text-gray-400"
-                    >
-                      Retry
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {c2Checked && (
-                <div className="p-3 rounded bg-slate-900 border border-gray-850 text-xs animate-fadeIn text-gray-400 leading-relaxed font-light">
-                  <div className="flex items-center gap-1.5 font-bold mb-1">
-                    {c2Correct ? (
-                      <span className="text-emerald-400 flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Correct Calculation!</span>
-                    ) : (
-                      <span className="text-red-400 flex items-center gap-1.5"><XCircle className="w-4 h-4" /> Incorrect</span>
-                    )}
-                  </div>
-                  
-                  {/* Level-adjusted Explanation */}
-                  {level === "beginner" && (
-                    <p className="leading-relaxed font-light">
-                      <strong>The Principle:</strong> Microwaves travel at the speed of light. Because the pulse must go down and bounce back, the distance is exactly half the total flight time.
-                    </p>
-                  )}
-                  {level === "intermediate" && (
-                    <p className="leading-relaxed font-light">
-                      <strong>Explanation:</strong> {"$Distance = \\frac{\\text{speed of light} \\cdot t}{2}$"}. At {"$0.3\\text{ km}/\\mu\\text{s}$"}, the range for {timeDelay} {"$\\mu\\text{s}$"} is exactly {((0.3 * timeDelay) / 2).toFixed(2)} km.
-                    </p>
-                  )}
-                  {level === "advanced" && (
-                    <div className="flex flex-col gap-2 font-light">
-                      <p>
-                        <strong>Formalization:</strong> The distance $r$ to the target bin is defined by:
-                        {"\\[r = \\frac{c \\cdot \\tau}{2}\\]"}
-                        where {"$c \\approx 2.9979 \\times 10^8\\text{ m/s}$"} and {"$\\tau$"} is the round-trip echo delay.
-                      </p>
-                      <span className="text-[9px] font-mono text-gray-500">Related variable: `zFactorMeasured`.</span>
-                    </div>
-                  )}
-
-                  {c2Correct && (
-                    <button 
-                      onClick={() => setChapter(3)}
-                      className="mt-2 py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs self-start"
-                    >
-                      Unlock Chapter 3
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+        {/* Back navigation */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+          <button 
+            className="btn btn-icon btn-secondary" 
+            style={{ borderRadius: "50%", padding: 0 }}
+            onClick={goHome} 
+            aria-label="Back"
+          >
+            <ChevronLeft width="18" height="18" style={{ color: "var(--color-text)" }} />
+          </button>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", color: "var(--color-accent-700)", textTransform: "uppercase" }}>{missionKicker}</div>
+            <h2 style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 19, margin: 0 }}>{missionTitle}</h2>
           </div>
+          <span className="tag tag-outline">+40 XP</span>
+        </div>
 
-          {/* Interactive pulse visualizer */}
-          <div className="lg:col-span-7 h-[400px] border border-gray-800 bg-slate-950 rounded-xl relative overflow-hidden flex flex-col justify-between p-4">
-            <div className="flex justify-between items-start">
-              <span className="text-[9px] text-gray-500 font-mono">PULSE TRAVEL SIMULATOR</span>
+        {/* Level switcher */}
+        <div className="seg" style={{ marginBottom: 16 }}>
+          {levels.map((lv) => (
+            <label 
+              key={lv.id} 
+              className={`seg-opt ${lv.checked ? "bg-[#ec3013] text-[#f3f2f2]" : "hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)]"}`}
+              style={{ transition: "all 0.15s ease" }}
+            >
+              <input 
+                type="radio" 
+                name="level-mission" 
+                checked={lv.checked} 
+                onChange={lv.onSelect} 
+                style={{ position: "absolute", opacity: 0, width: 0, height: 0 }}
+              />
+              <span>{lv.label}</span>
+            </label>
+          ))}
+        </div>
+
+        <hr className="hr" style={{ margin: "0 0 16px" }} />
+
+        <p style={{ fontSize: "13.5px", lineHeight: 1.6, marginBottom: 18 }}>{introText}</p>
+
+        {/* Slider-driven templates (PRE, VER, SRT) */}
+        {hasSlider && (
+          <div className="card elev-md" style={{ background: "var(--color-surface)", padding: "18px 16px", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+              <span style={{ fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{sliderLabel}</span>
+              <span style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 18 }}>{sliderValueLabel}</span>
+            </div>
+            
+            <input 
+              type="range" 
+              min={sliderMin} 
+              max={sliderMax} 
+              step={sliderStep} 
+              value={sliderVal} 
+              onChange={onSliderChange} 
+              disabled={sliderLocked}
+              style={{
+                WebkitAppearance: "none",
+                appearance: "none",
+                width: "100%",
+                height: 2,
+                background: "var(--color-divider)",
+                outline: "none"
+              }}
+            />
+
+            {showBar && (
+              <>
+                <div style={{ position: "relative", height: 26, background: "var(--color-neutral-200)", marginTop: 16 }}>
+                  <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: `${barPct}%`, background: "var(--color-accent-200)", borderRight: "2px solid var(--color-accent)", transition: "width 0.1s ease" }}></div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "color-mix(in srgb, var(--color-text) 55%, transparent)", marginTop: 6 }}>
+                  <span>{barLeftLabel}</span>
+                  <span>{barRightLabel}</span>
+                </div>
+              </>
+            )}
+
+            {showRevealButton && (
               <button 
-                onClick={triggerPulse} disabled={pulseActive}
-                className="py-1 px-3 bg-blue-600 hover:bg-blue-500 rounded text-[9px] font-bold text-white disabled:opacity-40"
+                className="btn btn-primary btn-block" 
+                style={{ justifyContent: "center", marginTop: 16 }} 
+                onClick={onReveal}
+                disabled={revealDone}
               >
-                Fire Pulse
+                {revealLabel}
               </button>
+            )}
+          </div>
+        )}
+
+        {/* DSD Module template */}
+        {isDsd && (
+          <div className="card elev-md" style={{ background: "var(--color-surface)", padding: "18px 16px", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+              <span style={{ fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>Raindrop diameter</span>
+              <span style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 18 }}>{dropSizeLabel} mm</span>
             </div>
-
-            <div className="flex-1 grid grid-cols-2 gap-6 items-end mt-4">
-              <div className="h-full border border-gray-900 rounded-lg relative overflow-hidden flex flex-col justify-end bg-slate-950/20">
-                <div className="absolute top-[35%] left-0 w-full h-[30%] bg-slate-400/5 border-y border-dashed border-gray-800 flex items-center justify-center text-[9px] text-gray-500">
-                  Melting Layer
-                </div>
-
-                {pulseActive && (
-                  <div 
-                    className="absolute w-full h-1 bg-yellow-400/80 animate-pulse shadow-glow"
-                    style={{ top: `${pulsePosition}%` }}
-                  />
-                )}
-                
-                <div className="h-4 bg-slate-900 border-t border-gray-800 text-[8px] font-mono text-center flex items-center justify-center text-gray-500 select-none">
-                  SURFACE
-                </div>
-              </div>
-
-              {/* Reflectivity chart */}
-              <div className="h-full border-l border-b border-gray-850 relative flex items-end">
-                <svg className="w-full h-full absolute inset-0" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  {reflectivityProfile.map((val, idx) => (
-                    <rect 
-                      key={idx} x="0" y={100 - idx} width={val * 1.5} height="1" 
-                      fill={idx >= 65 && idx < 72 ? "#d97706" : "#3b82f6"} 
-                      opacity="0.75"
-                    />
-                  ))}
-                </svg>
-                <div className="absolute bottom-1 right-2 text-[8px] text-gray-600 font-mono select-none">
-                  0 ────────── 55 dBZ
+            <input 
+              type="range" 
+              min="0.5" 
+              max="5" 
+              step="0.1" 
+              value={dropSize} 
+              onChange={onDropSizeChange} 
+              style={{
+                WebkitAppearance: "none",
+                appearance: "none",
+                width: "100%",
+                height: 2,
+                background: "var(--color-divider)",
+                outline: "none"
+              }}
+            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
+              <div>
+                <div style={{ fontSize: 10, marginBottom: 3 }}>Ku-band (13.6 GHz)</div>
+                <div style={{ height: 14, background: "var(--color-neutral-200)" }}>
+                  <div style={{ height: "100%", background: "var(--color-text)", width: `${kuPct}%`, transition: "width 0.15s ease" }}></div>
                 </div>
               </div>
+              <div>
+                <div style={{ fontSize: 10, marginBottom: 3 }}>Ka-band (35.5 GHz)</div>
+                <div style={{ height: 14, background: "var(--color-neutral-200)" }}>
+                  <div style={{ height: "100%", background: "var(--color-accent)", width: `${kaPct}%`, transition: "width 0.15s ease" }}></div>
+                </div>
+              </div>
+            </div>
+            <div style={{ textAlign: "center", fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)", marginTop: 12 }}>
+              Dual-frequency ratio: {dfrLabel} dB
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* --- CHAPTER 3: SCATTERING PHYSICS --- */}
-      {chapter === 3 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] text-gray-500 font-mono font-bold uppercase tracking-widest">Step 1: Observe & Experiment</span>
-              <p className="text-gray-300 text-xs leading-relaxed font-light">
-                Use the slider on the right to adjust the drop size $D_m$. Watch how the Ku-band (Rayleigh) and Ka-band (Mie) curves react as drop sizes grow.
-              </p>
-            </div>
-
-            {/* Scattering Challenge */}
-            <div className="glass-panel p-5 rounded-xl border border-gray-850 bg-slate-950/40 flex flex-col gap-4">
-              <div className="flex items-center gap-2 border-b border-gray-850 pb-2">
-                <QuestionIcon className="w-4.5 h-4.5 text-orange-400" />
-                <span className="text-xs font-bold text-white">Predict & Discover Patterns</span>
-              </div>
-
-              <div className="flex flex-col gap-1.5 p-3 rounded bg-slate-900 border border-gray-850">
-                <label className="text-xs font-semibold text-gray-400 flex justify-between">
-                  <span>Mean Drop Size (Dm):</span>
-                  <span className="text-orange-400 font-mono font-bold">{dropSize.toFixed(2)} mm</span>
-                </label>
-                <input 
-                  type="range" min="0.5" max="3.5" step="0.1" value={dropSize}
-                  onChange={(e) => {
-                    if (!c3Checked) setDropSize(Number(e.target.value));
-                  }}
-                  className="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-orange-400"
-                />
-              </div>
-
-              <p className="text-xs text-gray-300 font-light leading-relaxed">
-                Why does Ka-band reflectivity drop below Ku-band (creating a gap called DFR) once droplets exceed 1.2 mm, even though both beams hit the exact same raindrops?
-              </p>
-
-              <div className="flex flex-col gap-2.5">
-                {[
-                  "Ka-band is absorbed by the surrounding nitrogen in the air.",
-                  "Ka-band wavelength (8.4mm) is close to the raindrop size, causing complex self-interference (Mie scattering) which saturates the signal.",
-                  "Ku-band reflects off water, while Ka-band only reflects off ice."
-                ].map((opt, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      if (!c3Checked) setC3Prediction(idx);
-                    }}
-                    disabled={c3Checked}
-                    className={`p-3 text-left rounded-lg border text-xs transition-all ${
-                      c3Checked 
-                        ? idx === 1 
-                          ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400 font-semibold"
-                          : c3Prediction === idx 
-                            ? "bg-red-950/25 border-red-500/30 text-red-400"
-                            : "bg-slate-950 border-gray-900 text-gray-650 opacity-60"
-                        : c3Prediction === idx 
-                          ? "bg-blue-900/10 border-blue-500/40 text-blue-400 font-semibold"
-                          : "bg-slate-900/40 border-gray-800 text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-
-              {!c3Checked ? (
-                <button
-                  onClick={() => {
-                    setC3Checked(true);
-                    if (c3Prediction === 1) setC3Correct(true);
-                  }}
-                  disabled={c3Prediction === null}
-                  className="py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-xs font-bold text-white disabled:opacity-40"
-                >
-                  Submit Prediction
-                </button>
-              ) : (
-                <div className="p-3 rounded bg-slate-900 border border-gray-850 text-xs animate-fadeIn text-gray-400 leading-relaxed font-light">
-                  <div className="flex items-center gap-1.5 font-bold mb-1">
-                    {c3Correct ? (
-                      <span className="text-emerald-400 flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Correct Discovery!</span>
-                    ) : (
-                      <span className="text-red-400 flex items-center gap-1.5"><XCircle className="w-4 h-4" /> Prediction Incorrect</span>
-                    )}
-                  </div>
-                  
-                  {/* Level-adjusted Explanation */}
-                  {level === "beginner" && (
-                    <p className="leading-relaxed font-light">
-                      <strong>The Principle:</strong> Shorter waves (Ka) struggle to resolve large objects cleanly, while longer waves (Ku) handle them without losing reflectivity. The difference between their reflections tells us drop sizes.
-                    </p>
-                  )}
-                  {level === "intermediate" && (
-                    <p className="leading-relaxed font-light">
-                      <strong>Explanation:</strong> Smaller drops follow Rayleigh scattering ({"$Z \\propto D^6$"} for both bands). Larger drops cross into Mie scattering for Ka-band, causing it to roll off and creating the Dual Frequency Ratio (DFR).
-                    </p>
-                  )}
-                  {level === "advanced" && (
-                    <div className="flex flex-col gap-2 font-light">
-                      <p>
-                        <strong>Formalization:</strong> The Dual Frequency Ratio is defined by:
-                        {"\\[DFR = Z_{e,\\text{Ku}} - Z_{e,\\text{Ka}}\\]"}
-                        In the Mie scattering regime {"($D_m > 1.2$ mm)"}, the backscattering cross-section {"$\\sigma_b(D_m)$"} at Ka-band is smaller than its Rayleigh approximation, making {"$DFR$"} a unique function of {"$D_m$"}.
-                      </p>
-                      <span className="text-[9px] font-mono text-gray-500">Related variables: `zFactorCorrected`, `meanDomeDiameter`.</span>
-                    </div>
-                  )}
-
-                  {c3Correct && (
-                    <button 
-                      onClick={() => setChapter(4)}
-                      className="mt-2 py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs self-start"
-                    >
-                      Unlock Chapter 4
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Interactive DFR Curves sandbox */}
-          <div className="glass-panel p-6 rounded-xl border border-gray-800 bg-slate-950/40 flex flex-col justify-between gap-4">
-            <div className="flex flex-col gap-1 border-b border-gray-850 pb-2">
-              <span className="text-[9px] text-gray-500 font-mono uppercase tracking-wider">INTUITIVE PHYSICS SANDBOX</span>
-              <h3 className="text-xs font-bold text-white uppercase">Rayleigh vs. Mie Scattering (DFR)</h3>
-            </div>
-
-            <div className="h-44 border-l border-b border-gray-850 relative mt-4 flex items-end pl-8 pb-4 pr-2">
-              <div className="absolute left-1 top-0 bottom-4 text-[8px] text-gray-500 font-mono flex flex-col justify-between pointer-events-none select-none">
-                <span>40 dBZ</span>
-                <span>20 dBZ</span>
-                <span>0 dBZ</span>
-              </div>
-
-              <svg className="w-full h-full absolute inset-y-0 right-2 left-8 h-[calc(100%-16px)] w-[calc(100%-40px)] overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <line x1="16.6" y1="0" x2="16.6" y2="100" stroke="#1f2937" strokeWidth="0.5" strokeDasharray="2" />
-                <line x1="50" y1="0" x2="50" y2="100" stroke="#1f2937" strokeWidth="0.5" strokeDasharray="2" />
-                <line x1="83.3" y1="0" x2="83.3" y2="100" stroke="#1f2937" strokeWidth="0.5" strokeDasharray="2" />
-
-                {/* Shaded DFR area */}
-                <polygon 
-                  points={(() => {
-                    const kuPts: string[] = [];
-                    const kaPts: string[] = [];
-                    for (let d = 0.5; d <= 3.5; d += 0.1) {
-                      const x = ((d - 0.5) / 3.0) * 100;
-                      const valKu = 10 + 25 * Math.log10(d / 0.5);
-                      const yKu = 100 - (valKu / 40) * 100;
-                      kuPts.push(`${x},${yKu}`);
-
-                      const valKa = valKu - (d > 0.5 ? 2.5 * Math.pow(d - 0.5, 1.8) : 0);
-                      const yKa = 100 - (Math.max(valKa, 0) / 40) * 100;
-                      kaPts.unshift(`${x},${yKa}`);
-                    }
-                    return [...kuPts, ...kaPts].join(" ");
-                  })()}
-                  fill="rgba(139, 92, 246, 0.08)"
-                />
-
-                {/* Ku Curve */}
-                <path 
-                  d={(() => {
-                    const pts: string[] = [];
-                    let i = 0;
-                    for (let d = 0.5; d <= 3.5; d += 0.1) {
-                      const x = ((d - 0.5) / 3.0) * 100;
-                      const valKu = 10 + 25 * Math.log10(d / 0.5);
-                      const yKu = 100 - (valKu / 40) * 100;
-                      pts.push(`${i === 0 ? "M" : "L"} ${x} ${yKu}`);
-                      i++;
-                    }
-                    return pts.join(" ");
-                  })()}
-                  fill="none" stroke="#3b82f6" strokeWidth="2.5"
-                />
-
-                {/* Ka Curve */}
-                <path 
-                  d={(() => {
-                    const pts: string[] = [];
-                    let i = 0;
-                    for (let d = 0.5; d <= 3.5; d += 0.1) {
-                      const x = ((d - 0.5) / 3.0) * 100;
-                      const valKu = 10 + 25 * Math.log10(d / 0.5);
-                      const valKa = valKu - (d > 0.5 ? 2.5 * Math.pow(d - 0.5, 1.8) : 0);
-                      const yKa = 100 - (Math.max(valKa, 0) / 40) * 100;
-                      pts.push(`${i === 0 ? "M" : "L"} ${x} ${yKa}`);
-                      i++;
-                    }
-                    return pts.join(" ");
-                  })()}
-                  fill="none" stroke="#f97316" strokeWidth="2.5"
-                />
-
-                {/* Tracker Indicator */}
-                {(() => {
-                  const x = ((dropSize - 0.5) / 3.0) * 100;
-                  const currentKu = 10 + 25 * Math.log10(dropSize / 0.5);
-                  const currentKa = currentKu - (dropSize > 0.5 ? 2.5 * Math.pow(dropSize - 0.5, 1.8) : 0);
-                  const yKu = 100 - (currentKu / 40) * 100;
-                  const yKa = 100 - (Math.max(currentKa, 0) / 40) * 100;
-                  
-                  return (
-                    <g>
-                      <line x1={x} y1="0" x2={x} y2="100" stroke="#8b5cf6" strokeWidth="1" strokeDasharray="3" />
-                      <circle cx={x} cy={yKu} r="3.5" fill="#3b82f6" stroke="#ffffff" strokeWidth="1" />
-                      <circle cx={x} cy={yKa} r="3.5" fill="#f97316" stroke="#ffffff" strokeWidth="1" />
-                    </g>
-                  );
-                })()}
+        {/* CSF scan profile template */}
+        {isCsf && (
+          <div className="card elev-md" style={{ background: "var(--color-surface)", padding: "18px 16px", marginBottom: 16 }}>
+            {!csfRevealed ? (
+              <button 
+                className="btn btn-primary btn-block" 
+                style={{ justifyContent: "center" }} 
+                onClick={() => setCsfRevealed(true)}
+              >
+                Scan the profile
+              </button>
+            ) : (
+              <svg viewBox="0 0 220 160" width="100%" height="160" style={{ display: "block" }}>
+                <line x1="20" y1="10" x2="20" y2="150" stroke="var(--color-divider)" strokeWidth="2"></line>
+                <line x1="20" y1="150" x2="210" y2="150" stroke="var(--color-divider)" strokeWidth="2"></line>
+                <path d="M 30 140 C 40 138, 55 130, 65 95 C 72 72, 85 58, 95 60 C 105 62, 100 90, 90 100 C 78 112, 60 120, 50 132 C 44 138, 36 140, 30 140" fill="none" stroke="var(--color-accent)" strokeWidth="2.5"></path>
+                <text x="100" y="65" fontSize="9" fill="var(--color-text)">bright band</text>
+                <text x="8" y="150" fontSize="8" fill="var(--color-text)" transform="rotate(-90 8 150)">height</text>
+                <text x="105" y="158" fontSize="8" fill="var(--color-text)">reflectivity →</text>
               </svg>
+            )}
+          </div>
+        )}
 
-              <div className="absolute bottom-1 left-8 right-2 text-[8px] text-gray-500 font-mono flex justify-between pointer-events-none select-none">
-                <span>0.5 mm</span>
-                <span>1.5 mm</span>
-                <span>2.5 mm</span>
-                <span>3.5 mm</span>
+        {/* TRG footprint grid template */}
+        {isTrg && (
+          <div className="card elev-md" style={{ background: "var(--color-surface)", padding: "18px 16px", marginBottom: 16 }}>
+            <div style={{ fontSize: 10, textAlign: "center", marginBottom: 10, color: "color-mix(in srgb, var(--color-text) 55%, transparent)", textTransform: "uppercase", letterSpacing: "0.06em" }}>One DPR footprint (~5 km)</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3 }}>
+              {trgCells.map((c, idx) => (
+                <div key={idx} style={{ aspectRatio: 1, background: c.color }}></div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SLV solver template */}
+        {isSlv && (
+          <div className="card elev-md" style={{ background: "var(--color-surface)", padding: "18px 16px", marginBottom: 16 }}>
+            <div style={{ textAlign: "center", fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)", marginBottom: 12 }}>Both storms measure the same Z = 35 dBZ</div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <div style={{ flex: 1, textAlign: "center", border: "2.5px solid var(--color-divider)", padding: "12px 8px" }}>
+                <div style={{ fontSize: 10, marginBottom: 6 }}>Many small drops</div>
+                <div style={{ fontSize: 20 }}>💧💧💧💧💧</div>
+              </div>
+              <div style={{ flex: 1, textAlign: "center", border: "2.5px solid var(--color-divider)", padding: "12px 8px" }}>
+                <div style={{ fontSize: 10, marginBottom: 6 }}>Few large drops</div>
+                <div style={{ fontSize: 26 }}>💧　　💧</div>
               </div>
             </div>
-
-            {/* Readout */}
-            {(() => {
-              const currentKu = 10 + 25 * Math.log10(dropSize / 0.5);
-              const currentKa = currentKu - (dropSize > 0.5 ? 2.5 * Math.pow(dropSize - 0.5, 1.8) : 0);
-              const currentDfr = currentKu - currentKa;
-              
-              return (
-                <div className="p-3.5 rounded bg-slate-900 border border-gray-850 text-[10px] font-mono text-gray-300 leading-normal flex flex-col gap-1 mt-2">
-                  <div className="flex justify-between font-bold text-white border-b border-gray-800 pb-1 mb-1">
-                    <span>At Dm = {dropSize.toFixed(2)} mm</span>
-                    <span className="text-purple-400">DFR = {currentDfr.toFixed(2)} dB</span>
-                  </div>
-                  {dropSize <= 1.2 ? (
-                    <p>
-                      Both frequencies mirror each other. This is the Rayleigh zone.
-                    </p>
-                  ) : (
-                    <p>
-                      Curves diverge. The gap size reveals the exact mean drop diameter ($D_m$).
-                    </p>
-                  )}
-                </div>
-              );
-            })()}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* --- CHAPTER 4: PULSE JOURNEY STEPPER --- */}
-      {chapter === 4 && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Steps sidebar */}
-          <div className="lg:col-span-4 flex flex-col gap-2">
-            {journeyStages.map((stage, idx) => (
-              <button
-                key={stage.title}
-                onClick={() => {
-                  setJourneyStep(idx);
-                  setC4Prediction(null);
-                  setC4Checked(false);
-                  setC4Correct(false);
-                }}
-                className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
-                  journeyStep === idx 
-                    ? "bg-slate-800 text-white border-orange-500/40" 
-                    : "bg-slate-900/60 border-gray-855 text-gray-400 hover:text-white"
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                  journeyStep === idx ? "bg-orange-500 text-white" : "bg-gray-800 text-gray-400"
-                }`}>
-                  {idx + 1}
-                </div>
-                <span className="text-xs font-semibold">{stage.title}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Stepper display and review challenge card */}
-          <div className="lg:col-span-8 flex flex-col gap-6">
-            <div className="glass-panel p-6 rounded-xl border border-gray-800 flex flex-col gap-4">
-              <span className="text-[9px] text-orange-400 font-mono font-bold uppercase tracking-wider">STAGE {journeyStep + 1} OF 5</span>
-              <h3 className="text-md font-bold text-white">{journeyStages[journeyStep].title}</h3>
-            </div>
-
-            {/* Predict Challenge */}
-            <div className="glass-panel p-6 rounded-xl border border-gray-800 flex flex-col gap-4 bg-slate-955/20">
-              <div className="flex items-center gap-2 border-b border-gray-850 pb-2">
-                <QuestionIcon className="w-4.5 h-4.5 text-orange-400" />
-                <span className="text-xs font-bold text-white">Predict & Verify Concept</span>
-              </div>
-              
-              <p className="text-xs text-gray-300 font-light leading-normal">{journeyStages[journeyStep].question}</p>
-
-              <div className="flex flex-col gap-2">
-                {journeyStages[journeyStep].options.map((opt, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      if (!c4Checked) setC4Prediction(idx);
-                    }}
-                    disabled={c4Checked}
-                    className={`p-3 text-left rounded-lg border text-xs transition-all ${
-                      c4Checked 
-                        ? idx === journeyStages[journeyStep].correct 
-                          ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400 font-semibold"
-                          : c4Prediction === idx 
-                            ? "bg-red-950/25 border-red-500/30 text-red-400"
-                            : "bg-slate-955 border-gray-900 text-gray-600 opacity-60"
-                        : c4Prediction === idx 
-                          ? "bg-blue-900/10 border-blue-500/40 text-blue-400 font-semibold"
-                          : "bg-slate-900/40 border-gray-850 text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-
-              {!c4Checked ? (
-                <button
-                  onClick={() => {
-                    setC4Checked(true);
-                    if (c4Prediction === journeyStages[journeyStep].correct) setC4Correct(true);
-                  }}
-                  disabled={c4Prediction === null}
-                  className="py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-xs font-bold text-white disabled:opacity-40"
+        {/* Choices rendering */}
+        {showChoice && (
+          <div className="field" style={{ marginBottom: 14 }}>
+            <label style={{ display: "block", fontSize: 12, marginBottom: 6, color: "color-mix(in srgb, var(--color-text) 70%, transparent)" }}>{choiceLabel}</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              {choiceOptions.map((opt, idx) => (
+                <button 
+                  key={idx}
+                  className={`btn ${opt.btnClass} btn-block`} 
+                  style={{ justifyContent: "center" }} 
+                  onClick={opt.onPick}
+                  disabled={choiceChecked}
                 >
-                  Verify Prediction
+                  {opt.label}
                 </button>
-              ) : (
-                <div className="p-3 rounded bg-slate-900 border border-gray-850 text-xs animate-fadeIn text-gray-400 leading-normal font-light">
-                  <div className="flex items-center gap-1.5 font-bold mb-1">
-                    {c4Correct ? (
-                      <span className="text-emerald-400 flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Concept Solved!</span>
-                    ) : (
-                      <span className="text-red-400 flex items-center gap-1.5"><XCircle className="w-4 h-4" /> Incorrect</span>
-                    )}
-                  </div>
-                  
-                  {/* Level-adjusted Explanation */}
-                  <p className="mt-1">
-                    {level === "beginner" && journeyStages[journeyStep].explain.beginner}
-                    {level === "intermediate" && journeyStages[journeyStep].explain.intermediate}
-                    {level === "advanced" && journeyStages[journeyStep].explain.advanced}
-                  </p>
-
-                  {c4Correct && journeyStep < 4 && (
-                    <button 
-                      onClick={() => {
-                        setJourneyStep(prev => prev + 1);
-                        setC4Prediction(null);
-                        setC4Checked(false);
-                        setC4Correct(false);
-                      }}
-                      className="mt-2 py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs self-start"
-                    >
-                      Proceed to Stage {journeyStep + 2}
-                    </button>
-                  )}
-                </div>
-              )}
+              ))}
             </div>
+            {showChoiceConfirm && (
+              <button 
+                className="btn btn-secondary btn-block" 
+                style={{ justifyContent: "center", marginTop: 12 }} 
+                onClick={confirmChoice} 
+                disabled={choiceConfirmDisabled}
+              >
+                Check my answer
+              </button>
+            )}
           </div>
+        )}
+
+        {/* Numeric input rendering */}
+        {showNumeric && (
+          <>
+            <div className="field" style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 12, marginBottom: 6, color: "color-mix(in srgb, var(--color-text) 70%, transparent)" }}>{numericLabel}</label>
+              <input 
+                className="input" 
+                type="number" 
+                inputMode="decimal" 
+                placeholder={numericPlaceholder} 
+                value={numericVal} 
+                onChange={onNumericChange} 
+                disabled={numericChecked}
+              />
+            </div>
+            {showNumericCheckButton && (
+              <button 
+                className="btn btn-secondary btn-block" 
+                style={{ justifyContent: "center", marginBottom: 16 }} 
+                onClick={checkNumeric} 
+                disabled={numericCheckDisabled}
+              >
+                Check my answer
+              </button>
+            )}
+          </>
+        )}
+
+        {/* Feedback layout */}
+        {isChecked && (
+          <>
+            <div className="card" style={{ background: feedbackBg, marginBottom: 16, border: `1.5px solid ${feedbackColor}30` }}>
+              <span className="card-title" style={{ fontSize: 14, color: feedbackColor }}>{feedbackHeadline}</span>
+              <p className="card-body" style={{ opacity: 1, color: "var(--color-text)", marginTop: 4 }}>{explainText}</p>
+            </div>
+            <button 
+              className="btn btn-primary btn-block" 
+              style={{ justifyContent: "center" }} 
+              onClick={finishMission}
+            >
+              Continue
+            </button>
+          </>
+        )}
+
+      </div>
+
+      {/* Tabs */}
+      <div style={{ flex: "none", display: "flex", borderTop: "2.5px solid var(--color-divider)", padding: "10px 8px 26px", background: "var(--color-bg)" }}>
+        <div onClick={goHome} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "var(--color-neutral-600)", cursor: "pointer" }}>
+          <HomeIcon width="20" height="20" />
+          <span style={{ fontSize: 9, fontWeight: 700 }}>Home</span>
         </div>
-      )}
+        <div onClick={() => handleNavClick("/explorer")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "var(--color-accent)", cursor: "pointer" }}>
+          <CompassIcon width="20" height="20" />
+          <span style={{ fontSize: 9, fontWeight: 700 }}>Modules</span>
+        </div>
+        <div onClick={() => handleNavClick("/tutor")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "var(--color-neutral-600)", cursor: "pointer" }}>
+          <MessageIcon width="20" height="20" />
+          <span style={{ fontSize: 9, fontWeight: 700 }}>Tutor</span>
+        </div>
+        <div onClick={() => handleNavClick("/")} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "var(--color-neutral-600)", cursor: "pointer" }}>
+          <UserIcon width="20" height="20" />
+          <span style={{ fontSize: 9, fontWeight: 700 }}>Profile</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Responsive device container wrapper
+  const contentEl = screen === "home" ? homeScreen : missionScreen;
+
+  if (isMobileScreen) {
+    return (
+      <div className="w-full min-h-screen bg-[#f3f2f2] text-[#201e1d] overflow-hidden select-none">
+        <style dangerouslySetInnerHTML={{ __html: CSS_STYLES }} />
+        {contentEl}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#eae9e9] py-10 px-4 select-none">
+      <style dangerouslySetInnerHTML={{ __html: CSS_STYLES }} />
+      <IOSDevice dark={false} width={402} height={874} onBack={goHome}>
+        {contentEl}
+      </IOSDevice>
     </div>
   );
 }
