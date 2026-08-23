@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { 
   Home as HomeIcon, 
   Compass as CompassIcon, 
@@ -10,6 +11,20 @@ import {
   ChevronLeft,
   MoreHorizontal
 } from "lucide-react";
+import {
+  PreSimulation,
+  VerSimulation,
+  CsfSimulation,
+  DsdSimulation,
+  SrtSimulation,
+  TrgSimulation,
+  SlvSimulation
+} from "@/components/RemotionSimulations";
+
+const Player = dynamic(() => import("@remotion/player").then((mod) => mod.Player), {
+  ssr: false,
+  loading: () => <div className="h-40 bg-slate-950 rounded flex items-center justify-center text-xs text-slate-500 animate-pulse">LOADING PHYSICS SIMULATOR...</div>
+});
 
 // =============================================================
 // Mobile Mockup Helper Components
@@ -531,7 +546,7 @@ export default function StoryPage() {
     showRevealButton = !srtRevealed;
     revealLabel = "Measure the surface echo";
     onReveal = () => setSrtRevealed(true);
-    hasSlider = true;
+    hasSlider = false;
     sliderLabel = "Surface echo strength";
     sliderMin = 0; sliderMax = 100; sliderStep = 1;
     sliderVal = srtRevealed ? 35 : 100;
@@ -884,9 +899,42 @@ export default function StoryPage() {
 
         <p style={{ fontSize: "13.5px", lineHeight: 1.6, marginBottom: 18 }}>{introText}</p>
 
-        {/* Slider-driven templates (PRE, VER, SRT) */}
+        {/* Slider-driven templates (PRE, VER) */}
         {hasSlider && (
           <div className="card elev-md" style={{ background: "var(--color-surface)", padding: "18px 16px", marginBottom: 16 }}>
+            {activeMission === "pre" && (
+              <div className="rounded overflow-hidden mb-4" style={{ height: 180 }}>
+                <Player
+                  component={PreSimulation}
+                  inputProps={{ val: preVal, checked: preChecked }}
+                  durationInFrames={60}
+                  fps={30}
+                  compositionWidth={320}
+                  compositionHeight={180}
+                  style={{ width: "100%", height: "180px" }}
+                  controls={false}
+                  loop
+                  autoPlay
+                />
+              </div>
+            )}
+            {activeMission === "ver" && (
+              <div className="rounded overflow-hidden mb-4" style={{ height: 180 }}>
+                <Player
+                  component={VerSimulation}
+                  inputProps={{ val: verVal }}
+                  durationInFrames={60}
+                  fps={30}
+                  compositionWidth={320}
+                  compositionHeight={180}
+                  style={{ width: "100%", height: "180px" }}
+                  controls={false}
+                  loop
+                  autoPlay
+                />
+              </div>
+            )}
+            
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
               <span style={{ fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)" }}>{sliderLabel}</span>
               <span style={{ fontFamily: "var(--font-heading)", fontWeight: 800, fontSize: 18 }}>{sliderValueLabel}</span>
@@ -909,27 +957,33 @@ export default function StoryPage() {
                 outline: "none"
               }}
             />
+          </div>
+        )}
 
-            {showBar && (
-              <>
-                <div style={{ position: "relative", height: 26, background: "var(--color-neutral-200)", marginTop: 16 }}>
-                  <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: `${barPct}%`, background: "var(--color-accent-200)", borderRight: "2px solid var(--color-accent)", transition: "width 0.1s ease" }}></div>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "color-mix(in srgb, var(--color-text) 55%, transparent)", marginTop: 6 }}>
-                  <span>{barLeftLabel}</span>
-                  <span>{barRightLabel}</span>
-                </div>
-              </>
-            )}
-
-            {showRevealButton && (
+        {/* SRT Module template */}
+        {activeMission === "srt" && (
+          <div className="card elev-md" style={{ background: "var(--color-surface)", padding: "18px 16px", marginBottom: 16 }}>
+            <div className="rounded overflow-hidden mb-4" style={{ height: 160 }}>
+              <Player
+                component={SrtSimulation}
+                inputProps={{ revealed: srtRevealed }}
+                durationInFrames={60}
+                fps={30}
+                compositionWidth={320}
+                compositionHeight={160}
+                style={{ width: "100%", height: "160px" }}
+                controls={false}
+                loop
+                autoPlay
+              />
+            </div>
+            {!srtRevealed && (
               <button 
                 className="btn btn-primary btn-block" 
-                style={{ justifyContent: "center", marginTop: 16 }} 
+                style={{ justifyContent: "center" }} 
                 onClick={onReveal}
-                disabled={revealDone}
               >
-                {revealLabel}
+                Measure the surface echo
               </button>
             )}
           </div>
@@ -955,25 +1009,23 @@ export default function StoryPage() {
                 width: "100%",
                 height: 2,
                 background: "var(--color-divider)",
-                outline: "none"
+                outline: "none",
+                marginBottom: 16
               }}
             />
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
-              <div>
-                <div style={{ fontSize: 10, marginBottom: 3 }}>Ku-band (13.6 GHz)</div>
-                <div style={{ height: 14, background: "var(--color-neutral-200)" }}>
-                  <div style={{ height: "100%", background: "var(--color-text)", width: `${kuPct}%`, transition: "width 0.15s ease" }}></div>
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 10, marginBottom: 3 }}>Ka-band (35.5 GHz)</div>
-                <div style={{ height: 14, background: "var(--color-neutral-200)" }}>
-                  <div style={{ height: "100%", background: "var(--color-accent)", width: `${kaPct}%`, transition: "width 0.15s ease" }}></div>
-                </div>
-              </div>
-            </div>
-            <div style={{ textAlign: "center", fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)", marginTop: 12 }}>
-              Dual-frequency ratio: {dfrLabel} dB
+            <div className="rounded overflow-hidden" style={{ height: 160 }}>
+              <Player
+                component={DsdSimulation}
+                inputProps={{ dropSize }}
+                durationInFrames={60}
+                fps={30}
+                compositionWidth={320}
+                compositionHeight={160}
+                style={{ width: "100%", height: "160px" }}
+                controls={false}
+                loop
+                autoPlay
+              />
             </div>
           </div>
         )}
@@ -990,14 +1042,20 @@ export default function StoryPage() {
                 Scan the profile
               </button>
             ) : (
-              <svg viewBox="0 0 220 160" width="100%" height="160" style={{ display: "block" }}>
-                <line x1="20" y1="10" x2="20" y2="150" stroke="var(--color-divider)" strokeWidth="2"></line>
-                <line x1="20" y1="150" x2="210" y2="150" stroke="var(--color-divider)" strokeWidth="2"></line>
-                <path d="M 30 140 C 40 138, 55 130, 65 95 C 72 72, 85 58, 95 60 C 105 62, 100 90, 90 100 C 78 112, 60 120, 50 132 C 44 138, 36 140, 30 140" fill="none" stroke="var(--color-accent)" strokeWidth="2.5"></path>
-                <text x="100" y="65" fontSize="9" fill="var(--color-text)">bright band</text>
-                <text x="8" y="150" fontSize="8" fill="var(--color-text)" transform="rotate(-90 8 150)">height</text>
-                <text x="105" y="158" fontSize="8" fill="var(--color-text)">reflectivity →</text>
-              </svg>
+              <div className="rounded overflow-hidden" style={{ height: 120 }}>
+                <Player
+                  component={CsfSimulation}
+                  inputProps={{ revealed: csfRevealed, choice: csfChoice }}
+                  durationInFrames={60}
+                  fps={30}
+                  compositionWidth={320}
+                  compositionHeight={120}
+                  style={{ width: "100%", height: "120px" }}
+                  controls={false}
+                  loop={false}
+                  autoPlay
+                />
+              </div>
             )}
           </div>
         )}
@@ -1005,11 +1063,19 @@ export default function StoryPage() {
         {/* TRG footprint grid template */}
         {isTrg && (
           <div className="card elev-md" style={{ background: "var(--color-surface)", padding: "18px 16px", marginBottom: 16 }}>
-            <div style={{ fontSize: 10, textAlign: "center", marginBottom: 10, color: "color-mix(in srgb, var(--color-text) 55%, transparent)", textTransform: "uppercase", letterSpacing: "0.06em" }}>One DPR footprint (~5 km)</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3 }}>
-              {trgCells.map((c, idx) => (
-                <div key={idx} style={{ aspectRatio: 1, background: c.color }}></div>
-              ))}
+            <div className="rounded overflow-hidden" style={{ height: 160 }}>
+              <Player
+                component={TrgSimulation}
+                inputProps={{ choice: trgChoice }}
+                durationInFrames={60}
+                fps={30}
+                compositionWidth={320}
+                compositionHeight={160}
+                style={{ width: "100%", height: "160px" }}
+                controls={false}
+                loop
+                autoPlay
+              />
             </div>
           </div>
         )}
@@ -1017,16 +1083,19 @@ export default function StoryPage() {
         {/* SLV solver template */}
         {isSlv && (
           <div className="card elev-md" style={{ background: "var(--color-surface)", padding: "18px 16px", marginBottom: 16 }}>
-            <div style={{ textAlign: "center", fontSize: 11, color: "color-mix(in srgb, var(--color-text) 55%, transparent)", marginBottom: 12 }}>Both storms measure the same Z = 35 dBZ</div>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <div style={{ flex: 1, textAlign: "center", border: "2.5px solid var(--color-divider)", padding: "12px 8px" }}>
-                <div style={{ fontSize: 10, marginBottom: 6 }}>Many small drops</div>
-                <div style={{ fontSize: 20 }}>💧💧💧💧💧</div>
-              </div>
-              <div style={{ flex: 1, textAlign: "center", border: "2.5px solid var(--color-divider)", padding: "12px 8px" }}>
-                <div style={{ fontSize: 10, marginBottom: 6 }}>Few large drops</div>
-                <div style={{ fontSize: 26 }}>💧　　💧</div>
-              </div>
+            <div className="rounded overflow-hidden" style={{ height: 160 }}>
+              <Player
+                component={SlvSimulation}
+                inputProps={{ choice: slvChoice }}
+                durationInFrames={60}
+                fps={30}
+                compositionWidth={320}
+                compositionHeight={160}
+                style={{ width: "100%", height: "160px" }}
+                controls={false}
+                loop
+                autoPlay
+              />
             </div>
           </div>
         )}
